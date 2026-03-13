@@ -3,6 +3,7 @@ from django.db import models
 # Create your models here.
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.core.exceptions import ValidationError
 
 
 class Account(models.Model):
@@ -89,6 +90,26 @@ class Transaction(models.Model):
     notes = models.TextField(blank=True)
     is_transfer = models.BooleanField(default=False)
     is_excluded = models.BooleanField(default=False)
+
+    def clean(self):
+        if self.category is None:
+            return
+
+        if (
+            self.transaction_type == self.TransactionType.CREDIT
+            and not self.category.is_income
+        ):
+            raise ValidationError(
+                {"category": "Credit transactions should use an income category."}
+            )
+
+        if (
+            self.transaction_type == self.TransactionType.DEBIT
+            and self.category.is_income
+        ):
+            raise ValidationError(
+                {"category": "Debit transactions should use a non-income category."}
+            )
 
     def __str__(self):
         return f"{self.date} | {self.description_raw} | {self.amount}"

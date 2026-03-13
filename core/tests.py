@@ -89,3 +89,36 @@ class TransactionModelTests(TestCase):
 
         with self.assertRaises(ValidationError):
             transaction.full_clean()
+
+    def test_credit_transaction_cannot_use_non_income_category(self):
+        transaction = Transaction(
+            account=self.account,
+            category=self.category,  # Rent is not an income category
+            date="2026-03-13",
+            amount=Decimal("100.00"),
+            description_raw="INVALID CREDIT TEST",
+            merchant_normalized="Invalid",
+            transaction_type=Transaction.TransactionType.CREDIT,
+        )
+
+        with self.assertRaises(ValidationError):
+            transaction.full_clean()
+
+    def test_debit_transaction_cannot_use_income_category(self):
+        income_category = Category.objects.create(
+            name="Salary",
+            is_income=True,
+        )
+
+        transaction = Transaction(
+            account=self.account,
+            category=income_category,
+            date="2026-03-13",
+            amount=Decimal("100.00"),
+            description_raw="INVALID DEBIT TEST",
+            merchant_normalized="Invalid",
+            transaction_type=Transaction.TransactionType.DEBIT,
+        )
+
+        with self.assertRaises(ValidationError):
+            transaction.full_clean()

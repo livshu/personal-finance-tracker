@@ -160,10 +160,18 @@ Examples:
 
 ## Current limitations
 
-Version 1 does not yet enforce some logical rules, for example:
 
-- credits should usually use income categories
-- debits should usually use non-income categories
+Version 1 now includes basic validation to stop obvious mismatches between transaction direction and category type.
+
+For example:
+- `credit` transactions cannot use non-income categories
+- `debit` transactions cannot use income categories
+
+There are still areas not yet enforced, for example:
+- transfer logic is only partially modelled
+- duplicate detection is not implemented yet
+- split transactions are not supported yet
+- recurring transactions are not supported yet
 - duplicate detection is not implemented yet
 - split transactions are not supported yet
 - recurring transactions are not supported yet
