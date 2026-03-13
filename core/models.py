@@ -46,8 +46,13 @@ class Category(models.Model):
     is_income = models.BooleanField(default=False)
     description = models.TextField(blank=True)
 
+    class Meta:
+        verbose_name = "Category"
+        verbose_name_plural = "Categories"
+
     def __str__(self):
         return self.name
+
 
 
 class Transaction(models.Model):
