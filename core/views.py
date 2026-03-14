@@ -22,16 +22,20 @@ def home(request):
 
     if selected_month:
         try:
-            year_str, month_str = selected_month.split("-")
-            selected_year = int(year_str)
-            selected_month_number = int(month_str)
+            selected_date = date.fromisoformat(selected_month)
+            selected_year = selected_date.year
+            selected_month_number = selected_date.month
             month_start = date(selected_year, selected_month_number, 1)
         except (ValueError, TypeError):
-            month_start = today.replace(day=1)
-            selected_month = month_start.strftime("%Y-%m")
+            try:
+                year_str, month_str = selected_month.split("-")
+                selected_year = int(year_str)
+                selected_month_number = int(month_str)
+                month_start = date(selected_year, selected_month_number, 1)
+            except (ValueError, TypeError):
+                month_start = today.replace(day=1)
     else:
         month_start = today.replace(day=1)
-        selected_month = month_start.strftime("%Y-%m")
 
     if month_start.month == 12:
         next_month_start = date(month_start.year + 1, 1, 1)
@@ -136,7 +140,8 @@ def home(request):
         "monthly_spending_by_category": monthly_spending_by_category,
         "category_chart_labels": category_chart_labels,
         "category_chart_values": category_chart_values,
-        "selected_month": selected_month,
+        "selected_month": month_start.strftime("%Y-%m"),
+        "selected_month_date": month_start.isoformat(),
     }
     return render(request, "core/home.html", context)
 

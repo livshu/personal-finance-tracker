@@ -21,14 +21,14 @@
                     <div class="field-group">
                         <label for="month" class="form-label">Month</label>
                         <input
-                            type="month"
+                            type="date"
                             id="month"
                             name="month"
-                            value="{{ selected_month }}"
+                            value="{{ selected_month_date }}"
                             class="month-input"
+                            onchange="this.form.submit()"
                         >
                     </div>
-                    <button type="submit" class="button-link">Apply month</button>
                 </form>
 
                 <div class="quick-actions">

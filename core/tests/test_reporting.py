@@ -145,3 +145,12 @@ class HomeReportingTests(TestCase):
         self.assertEqual(len(spending_by_category), 1)
         self.assertEqual(spending_by_category[0]["category__name"], "Groceries")
         self.assertEqual(spending_by_category[0]["total"], Decimal("60.00"))
+
+    def test_home_accepts_date_picker_month_values(self):
+        today = date.today().replace(day=1)
+
+        response = self.client.get("/", {"month": today.isoformat()})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["selected_month"], today.strftime("%Y-%m"))
+        self.assertEqual(response.context["selected_month_date"], today.isoformat())
