@@ -1,5 +1,4 @@
 from decimal import Decimal
-
 from django.db.models import Sum
 from django.db.models.functions import Coalesce
 from django.shortcuts import redirect, render
@@ -14,7 +13,7 @@ from core.forms import (
 from core.importers.amex import AmexCSVFormatError, parse_amex_csv
 from core.importers.lloyds import LloydsCSVFormatError, parse_lloyds_csv
 from core.importers.santander import SantanderCSVFormatError, parse_santander_csv
-
+from core.import_services import build_transactions_for_import
 
 def home(request):
     today = timezone.localdate()
@@ -47,6 +46,8 @@ def home(request):
         (get_reporting_amount(transaction) for transaction in monthly_credit_transactions),
         start=Decimal("0.00"),
     )
+
+    monthly_net_amount = monthly_credit_total - monthly_debit_total
 
     monthly_transfer_count = Transaction.objects.filter(
         is_transfer=True,
@@ -90,6 +91,14 @@ def home(request):
             reverse=True,
         )
     ]
+    category_chart_labels = [
+    item["category__name"] for item in monthly_spending_by_category
+    ]
+
+    category_chart_values = [
+        float(item["total"]) for item in monthly_spending_by_category
+    ]
+
 
     context = {
         "account_count": Account.objects.count(),
@@ -98,9 +107,12 @@ def home(request):
         "recent_transactions": recent_transactions,
         "monthly_debit_total": monthly_debit_total,
         "monthly_credit_total": monthly_credit_total,
+        "monthly_net_amount": monthly_net_amount,
         "monthly_transfer_count": monthly_transfer_count,
         "monthly_excluded_count": monthly_excluded_count,
         "monthly_spending_by_category": monthly_spending_by_category,
+        "category_chart_labels": category_chart_labels,
+        "category_chart_values": category_chart_values,
     }
     return render(request, "core/home.html", context)
 
@@ -243,71 +255,7 @@ def import_santander_csv(request):
     return render(request, "core/import_santander.html", {"form": form})
 
 
-def import_amex_csv(request):
-    form = AmexCSVUploadForm()
 
-    if request.method == "POST":
-        form = AmexCSVUploadForm(request.POST, request.FILES)
-
-        if form.is_valid():
-            account = form.cleaned_data["account"]
-            csv_file = form.cleaned_data["csv_file"]
-
-            try:
-                parsed_rows = parse_amex_csv(csv_file)
-            except AmexCSVFormatError as exc:
-                form.add_error("csv_file", str(exc))
-            else:
-                preview_debit_rows = [
-                    row for row in parsed_rows if row["transaction_type"] == "debit"
-                ]
-                preview_credit_rows = [
-                    row for row in parsed_rows if row["transaction_type"] == "credit"
-                ]
-
-                preview_debit_total = sum(
-                    (row["amount"] for row in preview_debit_rows),
-                    start=Decimal("0.00"),
-                )
-                preview_credit_total = sum(
-                    (row["amount"] for row in preview_credit_rows),
-                    start=Decimal("0.00"),
-                )
-
-                serializable_rows = [
-                    {
-                        "date": row["date"].isoformat(),
-                        "description_raw": row["description_raw"],
-                        "transaction_type": row["transaction_type"],
-                        "amount": str(row["amount"]),
-                        "appears_on_statement_as": row["appears_on_statement_as"],
-                        "reference": row["reference"],
-                        "category_label": row["category_label"],
-                    }
-                    for row in parsed_rows
-                ]
-
-                request.session["amex_import_preview"] = {
-                    "account_id": account.id,
-                    "uploaded_file_name": csv_file.name,
-                    "parsed_rows": serializable_rows,
-                }
-
-                return render(
-                    request,
-                    "core/amex_preview.html",
-                    {
-                        "account": account,
-                        "uploaded_file_name": csv_file.name,
-                        "parsed_rows": parsed_rows,
-                        "preview_debit_count": len(preview_debit_rows),
-                        "preview_credit_count": len(preview_credit_rows),
-                        "preview_debit_total": preview_debit_total,
-                        "preview_credit_total": preview_credit_total,
-                    },
-                )
-
-    return render(request, "core/import_amex.html", {"form": form})
 def confirm_santander_import(request):
     if request.method != "POST":
         return redirect("import_santander_csv")
@@ -320,44 +268,12 @@ def confirm_santander_import(request):
     uploaded_file_name = preview_data["uploaded_file_name"]
     parsed_rows = preview_data["parsed_rows"]
 
-    transactions_to_create = []
-    imported_at = timezone.now()
-    skipped_count = 0
-
-    for row in parsed_rows:
-        row_date = row["date"]
-        row_amount = Decimal(row["amount"])
-        row_description = row["description_raw"]
-        row_type = row["transaction_type"]
-
-        already_exists = Transaction.objects.filter(
-            account=account,
-            date=row_date,
-            amount=row_amount,
-            description_raw=row_description,
-            transaction_type=row_type,
-        ).exists()
-
-        if already_exists:
-            skipped_count += 1
-            continue
-
-        transactions_to_create.append(
-            Transaction(
-                account=account,
-                category=None,
-                date=row_date,
-                amount=row_amount,
-                description_raw=row_description,
-                merchant_normalized="",
-                transaction_type=row_type,
-                source_file=uploaded_file_name,
-                imported_at=imported_at,
-                notes=f"Santander import ({row['bank_transaction_type']})",
-                is_transfer=False,
-                is_excluded=False,
-            )
-        )
+    transactions_to_create, skipped_count = build_transactions_for_import(
+    account=account,
+    uploaded_file_name=uploaded_file_name,
+    parsed_rows=parsed_rows,
+    notes_builder=lambda row: f"Santander import ({row['bank_transaction_type']})",
+)
 
     Transaction.objects.bulk_create(transactions_to_create)
 
@@ -386,45 +302,12 @@ def confirm_lloyds_import(request):
     uploaded_file_name = preview_data["uploaded_file_name"]
     parsed_rows = preview_data["parsed_rows"]
 
-    transactions_to_create = []
-    imported_at = timezone.now()
-    skipped_count = 0
-
-    for row in parsed_rows:
-        row_date = row["date"]
-        row_amount = Decimal(row["amount"])
-        row_description = row["description_raw"]
-        row_type = row["transaction_type"]
-
-        already_exists = Transaction.objects.filter(
-            account=account,
-            date=row_date,
-            amount=row_amount,
-            description_raw=row_description,
-            transaction_type=row_type,
-        ).exists()
-
-        if already_exists:
-            skipped_count += 1
-            continue
-
-        transactions_to_create.append(
-            Transaction(
-                account=account,
-                category=None,
-                date=row_date,
-                amount=row_amount,
-                description_raw=row_description,
-                merchant_normalized="",
-                transaction_type=row_type,
-                source_file=uploaded_file_name,
-                imported_at=imported_at,
-                notes=f"Lloyds import ({row['bank_transaction_type']})",
-                is_transfer=False,
-                is_excluded=False,
-            )
-        )
-
+    transactions_to_create, skipped_count = build_transactions_for_import(
+        account=account,
+        uploaded_file_name=uploaded_file_name,
+        parsed_rows=parsed_rows,
+        notes_builder=lambda row: f"Lloyds import ({row['bank_transaction_type']})",
+    )
     Transaction.objects.bulk_create(transactions_to_create)
 
     del request.session["lloyds_import_preview"]
@@ -544,45 +427,12 @@ def confirm_amex_import(request):
     uploaded_file_name = preview_data["uploaded_file_name"]
     parsed_rows = preview_data["parsed_rows"]
 
-    transactions_to_create = []
-    imported_at = timezone.now()
-    skipped_count = 0
-
-    for row in parsed_rows:
-        row_date = row["date"]
-        row_amount = Decimal(row["amount"])
-        row_description = row["description_raw"]
-        row_type = row["transaction_type"]
-
-        already_exists = Transaction.objects.filter(
-            account=account,
-            date=row_date,
-            amount=row_amount,
-            description_raw=row_description,
-            transaction_type=row_type,
-        ).exists()
-
-        if already_exists:
-            skipped_count += 1
-            continue
-
-        transactions_to_create.append(
-            Transaction(
-                account=account,
-                category=None,
-                date=row_date,
-                amount=row_amount,
-                description_raw=row_description,
-                merchant_normalized="",
-                transaction_type=row_type,
-                source_file=uploaded_file_name,
-                imported_at=imported_at,
-                notes="Amex import",
-                is_transfer=False,
-                is_excluded=False,
-            )
-        )
-
+    transactions_to_create, skipped_count = build_transactions_for_import(
+        account=account,
+        uploaded_file_name=uploaded_file_name,
+        parsed_rows=parsed_rows,
+        notes_builder=lambda row: "Amex import",
+    )
     Transaction.objects.bulk_create(transactions_to_create)
 
     del request.session["amex_import_preview"]

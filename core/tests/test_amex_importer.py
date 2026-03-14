@@ -8,7 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
-from core.models import Account, Transaction
+from core.models import Account, Category, Transaction
 
 class AmexImporterTests(SimpleTestCase):
     def test_parse_amex_csv_with_valid_file(self):
@@ -156,3 +156,57 @@ class AmexImportFlowTests(TestCase):
         self.assertEqual(second_confirm_response.context["imported_count"], 0)
         self.assertEqual(second_confirm_response.context["skipped_count"], 2)
         self.assertEqual(Transaction.objects.count(), 2)
+
+def test_confirm_amex_import_sets_normalized_merchant(self):
+    preview_response = self.client.post(
+        reverse("import_amex_csv"),
+        {
+            "account": self.account.id,
+            "csv_file": self.make_uploaded_file(),
+        },
+    )
+    self.assertEqual(preview_response.status_code, 200)
+
+    confirm_response = self.client.post(reverse("confirm_amex_import"))
+    self.assertEqual(confirm_response.status_code, 200)
+
+    tesco_transaction = Transaction.objects.get(
+        description_raw="TESCO STORE 5122 5122TE LONDON"
+    )
+    amazon_transaction = Transaction.objects.get(
+        description_raw="REFUND AMAZON"
+    )
+
+    self.assertEqual(tesco_transaction.merchant_normalized, "Tesco")
+    self.assertEqual(amazon_transaction.merchant_normalized, "Amazon")
+
+def test_confirm_amex_import_sets_category_from_normalized_merchant(self):
+    Category.objects.create(name="Groceries", is_income=False)
+    Category.objects.create(name="Shopping", is_income=False)
+
+    preview_response = self.client.post(
+        reverse("import_amex_csv"),
+        {
+            "account": self.account.id,
+            "csv_file": self.make_uploaded_file(),
+        },
+    )
+    self.assertEqual(preview_response.status_code, 200)
+
+    confirm_response = self.client.post(reverse("confirm_amex_import"))
+    self.assertEqual(confirm_response.status_code, 200)
+
+    tesco_transaction = Transaction.objects.get(
+        description_raw="TESCO STORE 5122 5122TE LONDON"
+    )
+    amazon_transaction = Transaction.objects.get(
+        description_raw="REFUND AMAZON"
+    )
+
+    self.assertEqual(tesco_transaction.merchant_normalized, "Tesco")
+    self.assertIsNotNone(tesco_transaction.category)
+    self.assertEqual(tesco_transaction.category.name, "Groceries")
+
+    self.assertEqual(amazon_transaction.merchant_normalized, "Amazon")
+    self.assertIsNotNone(amazon_transaction.category)
+    self.assertEqual(amazon_transaction.category.name, "Shopping")

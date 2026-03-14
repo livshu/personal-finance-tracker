@@ -54,7 +54,12 @@
                 <p>No current month spending data yet.</p>
             {% endif %}
         </div>   
-
+        <section class="dashboard-card">
+            <h2>Current month spending by category chart</h2>
+            <div class="chart-wrapper">
+                <canvas id="categorySpendingChart"></canvas>
+            </div>
+        </section>
         <div class="section-card">
             <h2>Recent transactions</h2>
             {% if recent_transactions %}
@@ -76,5 +81,43 @@
             {% endif %}
         </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const categoryChartLabels = {{ category_chart_labels|safe }};
+        const categoryChartValues = {{ category_chart_values|safe }};
+    
+        const categoryChartCanvas = document.getElementById("categorySpendingChart");
+    
+        if (categoryChartCanvas && categoryChartLabels.length > 0) {
+            new Chart(categoryChartCanvas, {
+                type: "bar",
+                data: {
+                    labels: categoryChartLabels,
+                    datasets: [
+                        {
+                            label: "Spend (£)",
+                            data: categoryChartValues,
+                        }
+                    ]
+                },
+                options: {
+                    indexAxis: "y",
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+    </script>
 </body>
 </html>
