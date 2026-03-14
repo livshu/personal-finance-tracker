@@ -1,4 +1,5 @@
 from decimal import Decimal
+from datetime import date
 from django.db.models import Sum
 from django.db.models.functions import Coalesce
 from django.shortcuts import redirect, render
@@ -17,24 +18,46 @@ from core.import_services import build_transactions_for_import
 
 def home(request):
     today = timezone.localdate()
-    month_start = today.replace(day=1)
+    selected_month = request.GET.get("month")
 
-    recent_transactions = Transaction.objects.select_related(
-        "account", "category"
-    ).order_by("-date", "-id")[:5]
+    if selected_month:
+        try:
+            year_str, month_str = selected_month.split("-")
+            selected_year = int(year_str)
+            selected_month_number = int(month_str)
+            month_start = date(selected_year, selected_month_number, 1)
+        except (ValueError, TypeError):
+            month_start = today.replace(day=1)
+            selected_month = month_start.strftime("%Y-%m")
+    else:
+        month_start = today.replace(day=1)
+        selected_month = month_start.strftime("%Y-%m")
+
+    if month_start.month == 12:
+        next_month_start = date(month_start.year + 1, 1, 1)
+    else:
+        next_month_start = date(month_start.year, month_start.month + 1, 1)
+
+    month_end = next_month_start - timezone.timedelta(days=1)
+
+    recent_transactions = (
+        Transaction.objects.select_related("account", "category")
+        .filter(date__gte=month_start, date__lte=month_end)
+        .order_by("-date", "-id")[:10]
+    )
 
     monthly_debit_transactions = Transaction.objects.select_related("account").filter(
         transaction_type=Transaction.TransactionType.DEBIT,
         is_excluded=False,
         date__gte=month_start,
-        date__lte=today,
+        date__lte=month_end,
     )
 
     monthly_credit_transactions = Transaction.objects.select_related("account").filter(
         transaction_type=Transaction.TransactionType.CREDIT,
         is_excluded=False,
         date__gte=month_start,
-        date__lte=today,
+        date__lte=month_end,
     )
 
     monthly_debit_total = sum(
@@ -52,13 +75,13 @@ def home(request):
     monthly_transfer_count = Transaction.objects.filter(
         is_transfer=True,
         date__gte=month_start,
-        date__lte=today,
+        date__lte=month_end,
     ).count()
 
     monthly_excluded_count = Transaction.objects.filter(
         is_excluded=True,
         date__gte=month_start,
-        date__lte=today,
+        date__lte=month_end,
     ).count()
 
     monthly_category_transactions = Transaction.objects.select_related(
@@ -68,7 +91,7 @@ def home(request):
         is_excluded=False,
         is_transfer=False,
         date__gte=month_start,
-        date__lte=today,
+        date__lte=month_end,
         category__isnull=False,
     )
 
@@ -113,6 +136,7 @@ def home(request):
         "monthly_spending_by_category": monthly_spending_by_category,
         "category_chart_labels": category_chart_labels,
         "category_chart_values": category_chart_values,
+        "selected_month": selected_month,
     }
     return render(request, "core/home.html", context)
 

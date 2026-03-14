@@ -53,13 +53,18 @@
             {% else %}
                 <p>No current month spending data yet.</p>
             {% endif %}
-        </div>   
-        <section class="dashboard-card">
+        </div>
+
+        <section class="section-card chart-card">
             <h2>Current month spending by category chart</h2>
-            <div class="chart-wrapper">
+            <div
+                class="chart-wrapper"
+                style="height: {% widthratio category_chart_labels|length 1 70 %}px; min-height: 320px;"
+            >
                 <canvas id="categorySpendingChart"></canvas>
             </div>
         </section>
+
         <div class="section-card">
             <h2>Recent transactions</h2>
             {% if recent_transactions %}
@@ -86,9 +91,9 @@
     <script>
         const categoryChartLabels = {{ category_chart_labels|safe }};
         const categoryChartValues = {{ category_chart_values|safe }};
-    
+
         const categoryChartCanvas = document.getElementById("categorySpendingChart");
-    
+
         if (categoryChartCanvas && categoryChartLabels.length > 0) {
             new Chart(categoryChartCanvas, {
                 type: "bar",
@@ -98,6 +103,14 @@
                         {
                             label: "Spend (£)",
                             data: categoryChartValues,
+                            backgroundColor: "#ff4f9a",
+                            borderColor: "#ff4f9a",
+                            borderWidth: 1,
+                            borderRadius: 8,
+                            barThickness: 28,
+                            maxBarThickness: 34,
+                            categoryPercentage: 0.72,
+                            barPercentage: 0.9,
                         }
                     ]
                 },
@@ -105,17 +118,82 @@
                     indexAxis: "y",
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: {
+                        padding: {
+                            top: 8,
+                            right: 18,
+                            bottom: 8,
+                            left: 40
+                        }
+                    },
                     scales: {
                         x: {
-                            beginAtZero: true
+                            beginAtZero: true,
+                            grid: {
+                                color: "rgba(15, 23, 42, 0.12)"
+                            },
+                            ticks: {
+                                color: "#334155",
+                                font: {
+                                    size: 13,
+                                    weight: "600"
+                                },
+                                callback: function(value) {
+                                    return "£" + value;
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: "Total Spend",
+                                color: "#334155",
+                                font: {
+                                    size: 14,
+                                    weight: "700"
+                                }
+                            }
+                        },
+                        y: {
+                            offset: true,
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: "#1e293b",
+                                padding: 12,
+                                crossAlign: "far",
+                                font: {
+                                    size: 12,
+                                    weight: "700"
+                                }
+                            },
+                            title: {
+                                display: false
+                            }
                         }
                     },
                     plugins: {
                         legend: {
                             display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return " £" + Number(context.raw).toFixed(2);
+                                }
+                            }
                         }
                     }
-                }
+                },
+                plugins: [
+                    {
+                        id: "increase-y-axis-width",
+                        afterFit(scale) {
+                            if (scale.id === "y") {
+                                scale.width = 160;
+                            }
+                        }
+                    }
+                ]
             });
         }
     </script>
