@@ -1,22 +1,50 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Amex Import Complete</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
 </head>
 <body>
-    <h1>Amex Import Complete</h1>
+    <div class="import-shell">
+        <div class="import-stack">
+            <section class="import-hero">
+                <div>
+                    <p class="eyebrow">Import complete</p>
+                    <h1 class="page-title">Amex Import Complete</h1>
+                    <p class="page-subtitle">Your Amex card import has finished and the results are ready to review.</p>
+                </div>
+                <div class="import-hero-panel">
+                    <p><strong>Account:</strong> {{ account }}</p>
+                    <p><strong>Uploaded file:</strong> {{ uploaded_file_name }}</p>
+                </div>
+            </section>
 
-    <p><strong>Account:</strong> {{ account }}</p>
-    <p><strong>Uploaded file:</strong> {{ uploaded_file_name }}</p>
-
-    <ul>
-        <li><strong>Imported:</strong> {{ imported_count }}</li>
-        <li><strong>Skipped:</strong> {{ skipped_count }}</li>
-    </ul>
-
-    <p><a href="/import/amex/">Import another Amex CSV</a></p>
-    <p><a href="/">Back to homepage</a></p>
+            <section class="section-card import-card">
+                <div class="section-heading">
+                    <div>
+                        <p class="section-kicker">Results</p>
+                        <h2>Import summary</h2>
+                    </div>
+                </div>
+                <div class="summary-grid compact">
+                    <article class="stat-card accent-credit">
+                        <p class="stat-label">Imported</p>
+                        <p class="stat-value">{{ imported_count }}</p>
+                    </article>
+                    <article class="stat-card">
+                        <p class="stat-label">Skipped</p>
+                        <p class="stat-value">{{ skipped_count }}</p>
+                    </article>
+                </div>
+                <div class="link-actions" style="margin-top: 20px;">
+                    <a class="button-link" href="/import/amex/">Import another Amex CSV</a>
+                    <a class="button-link secondary" href="/">Back to dashboard</a>
+                </div>
+            </section>
+        </div>
+    </div>
 </body>
 </html>

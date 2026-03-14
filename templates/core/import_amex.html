@@ -1,21 +1,48 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Import Amex CSV</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
 </head>
 <body>
-    <h1>Import Amex CSV</h1>
+    <div class="import-shell">
+        <div class="import-stack">
+            <section class="import-hero">
+                <div>
+                    <p class="eyebrow">CSV import</p>
+                    <h1 class="page-title">Import Amex CSV</h1>
+                    <p class="page-subtitle">Upload an Amex export, map it to an existing account, and review duplicates before confirming the import.</p>
+                </div>
+                <div class="import-hero-panel">
+                    <p>Useful when you want a quick card-statement import without jumping into the admin.</p>
+                    <div class="link-actions">
+                        <a class="button-link" href="/">Back to dashboard</a>
+                        <a class="button-link secondary" href="/admin/">Open admin</a>
+                    </div>
+                </div>
+            </section>
 
-    <p>Upload an Amex CSV and choose which existing account it belongs to.</p>
-
-    <form method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Preview import</button>
-    </form>
-
-    <p><a href="/">Back to homepage</a></p>
+            <section class="section-card import-card form-card">
+                <div class="section-heading">
+                    <div>
+                        <p class="section-kicker">Upload</p>
+                        <h2>Choose your Amex file</h2>
+                    </div>
+                </div>
+                <p class="intro-text">Select the file and account, and we’ll show you exactly what is new versus already present.</p>
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    {{ form.as_p }}
+                    <div class="form-actions">
+                        <button type="submit" class="button-link">Preview import</button>
+                        <a class="button-link secondary" href="/">Cancel</a>
+                    </div>
+                </form>
+            </section>
+        </div>
+    </div>
 </body>
 </html>

@@ -1,20 +1,51 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lloyds Import Complete</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
 </head>
 <body>
-    <h1>Lloyds Import Complete</h1>
+    <div class="import-shell">
+        <div class="import-stack">
+            <section class="import-hero">
+                <div>
+                    <p class="eyebrow">Import complete</p>
+                    <h1 class="page-title">Lloyds Import Complete</h1>
+                    <p class="page-subtitle">Your Lloyds transactions have been processed and the import results are ready below.</p>
+                </div>
+                <div class="import-hero-panel">
+                    <p><strong>Account:</strong> {{ account }}</p>
+                    <p><strong>File:</strong> {{ uploaded_file_name }}</p>
+                </div>
+            </section>
 
-    <p><strong>Account:</strong> {{ account }}</p>
-    <p><strong>File:</strong> {{ uploaded_file_name }}</p>
-    <p><strong>Transactions imported:</strong> {{ imported_count }}</p>
-    <p><strong>Duplicates skipped:</strong> {{ skipped_count }}</p>
-
-    <p><a href="/">Back to homepage</a></p>
-    <p><a href="/admin/">Go to admin</a></p>
-    <p><a href="/import/lloyds/">Import another Lloyds CSV</a></p>
+            <section class="section-card import-card">
+                <div class="section-heading">
+                    <div>
+                        <p class="section-kicker">Results</p>
+                        <h2>Import summary</h2>
+                    </div>
+                </div>
+                <div class="summary-grid compact">
+                    <article class="stat-card accent-credit">
+                        <p class="stat-label">Transactions imported</p>
+                        <p class="stat-value">{{ imported_count }}</p>
+                    </article>
+                    <article class="stat-card">
+                        <p class="stat-label">Duplicates skipped</p>
+                        <p class="stat-value">{{ skipped_count }}</p>
+                    </article>
+                </div>
+                <div class="link-actions" style="margin-top: 20px;">
+                    <a class="button-link" href="/import/lloyds/">Import another Lloyds CSV</a>
+                    <a class="button-link secondary" href="/">Back to dashboard</a>
+                    <a class="button-link secondary" href="/admin/">Go to admin</a>
+                </div>
+            </section>
+        </div>
+    </div>
 </body>
 </html>

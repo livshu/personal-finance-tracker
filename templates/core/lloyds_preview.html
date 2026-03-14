@@ -1,67 +1,133 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Preview Lloyds Import</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
 </head>
 <body>
-    <h1>Preview Lloyds Import</h1>
+    <div class="import-shell">
+        <div class="import-stack">
+            <section class="import-hero">
+                <div>
+                    <p class="eyebrow">Import preview</p>
+                    <h1 class="page-title">Preview Lloyds Import</h1>
+                    <p class="page-subtitle">Review the parsed transactions, check for duplicates, and confirm only when everything looks right.</p>
+                </div>
+                <div class="import-hero-panel">
+                    <p><strong>Selected account:</strong> {{ account }}</p>
+                    <p><strong>Uploaded file:</strong> {{ uploaded_file_name }}</p>
+                </div>
+            </section>
 
-    <p><strong>Selected account:</strong> {{ account }}</p>
-    <p><strong>Uploaded file:</strong> {{ uploaded_file_name }}</p>
+            <section class="import-layout two-column">
+                <div class="section-card import-card">
+                    <div class="section-heading">
+                        <div>
+                            <p class="section-kicker">Summary</p>
+                            <h2>Import summary</h2>
+                        </div>
+                    </div>
+                    <div class="summary-grid">
+                        <article class="stat-card">
+                            <p class="stat-label">Rows parsed</p>
+                            <p class="stat-value">{{ parsed_rows|length }}</p>
+                        </article>
+                        <article class="stat-card">
+                            <p class="stat-label">Debit rows</p>
+                            <p class="stat-value">{{ preview_debit_count }}</p>
+                        </article>
+                        <article class="stat-card">
+                            <p class="stat-label">Credit rows</p>
+                            <p class="stat-value">{{ preview_credit_count }}</p>
+                        </article>
+                        <article class="stat-card">
+                            <p class="stat-label">New rows to import</p>
+                            <p class="stat-value">{{ new_row_count }}</p>
+                        </article>
+                        <article class="stat-card accent-debit">
+                            <p class="stat-label">Total debits</p>
+                            <p class="stat-value">£{{ preview_debit_total }}</p>
+                        </article>
+                        <article class="stat-card accent-credit">
+                            <p class="stat-label">Total credits</p>
+                            <p class="stat-value">£{{ preview_credit_total }}</p>
+                        </article>
+                        <article class="stat-card">
+                            <p class="stat-label">Possible duplicates</p>
+                            <p class="stat-value">{{ duplicate_count }}</p>
+                        </article>
+                    </div>
+                </div>
 
-    <h2>Import summary</h2>
-    <ul>
-        <li><strong>Rows parsed:</strong> {{ parsed_rows|length }}</li>
-        <li><strong>Debit rows:</strong> {{ preview_debit_count }}</li>
-        <li><strong>Credit rows:</strong> {{ preview_credit_count }}</li>
-        <li><strong>Total debits:</strong> £{{ preview_debit_total }}</li>
-        <li><strong>Total credits:</strong> £{{ preview_credit_total }}</li>
-        <li><strong>Possible duplicates:</strong> {{ duplicate_count }}</li>
-        <li><strong>New rows to import:</strong> {{ new_row_count }}</li>
-    </ul>
+                <div class="section-card import-card">
+                    <div class="section-heading">
+                        <div>
+                            <p class="section-kicker">Decision</p>
+                            <h2>Ready to confirm?</h2>
+                        </div>
+                    </div>
+                    {% if new_row_count == 0 %}
+                        <div class="callout warning">
+                            <p>All rows in this file already exist for this account, so there is nothing new to import.</p>
+                        </div>
+                    {% else %}
+                        <div class="callout">
+                            <p>{{ new_row_count }} new rows are ready to be imported. Confirm below when you’re happy with the preview.</p>
+                        </div>
+                        <form method="post" action="{% url 'confirm_lloyds_import' %}" style="margin-top: 18px;">
+                            {% csrf_token %}
+                            <div class="form-actions">
+                                <button type="submit" class="button-link">Confirm import</button>
+                                <a class="button-link secondary" href="/import/lloyds/">Back to upload</a>
+                            </div>
+                        </form>
+                    {% endif %}
+                    <div class="link-actions" style="margin-top: 18px;">
+                        <a class="button-link secondary" href="/">Back to dashboard</a>
+                    </div>
+                </div>
+            </section>
 
-    {% if new_row_count == 0 %}
-        <p><strong>All rows in this file already exist for this account.</strong></p>
-        <p>No new transactions will be imported.</p>
-    {% endif %}
-
-    {% if parsed_rows %}
-        <table border="1" cellpadding="6" cellspacing="0">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Description</th>
-                    <th>Type</th>
-                    <th>Amount</th>
-                    <th>Bank Transaction Type</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in parsed_rows %}
-                    <tr>
-                        <td>{{ row.date }}</td>
-                        <td>{{ row.description_raw }}</td>
-                        <td>{{ row.transaction_type }}</td>
-                        <td>£{{ row.amount }}</td>
-                        <td>{{ row.bank_transaction_type }}</td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-        {% if new_row_count > 0 %}
-            <form method="post" action="{% url 'confirm_lloyds_import' %}">
-                {% csrf_token %}
-                <button type="submit">Confirm import</button>
-            </form>
-        {% endif %}
-    {% else %}
-        <p>No rows found.</p>
-    {% endif %}
-
-    <p><a href="/import/lloyds/">Back to Lloyds upload</a></p>
-    <p><a href="/">Back to homepage</a></p>
+            <section class="section-card import-card table-card">
+                <div class="section-heading">
+                    <div>
+                        <p class="section-kicker">Parsed rows</p>
+                        <h2>Transaction preview</h2>
+                    </div>
+                </div>
+                {% if parsed_rows %}
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Type</th>
+                                    <th>Amount</th>
+                                    <th>Bank Transaction Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in parsed_rows %}
+                                    <tr>
+                                        <td>{{ row.date }}</td>
+                                        <td>{{ row.description_raw }}</td>
+                                        <td>{{ row.transaction_type }}</td>
+                                        <td>£{{ row.amount }}</td>
+                                        <td>{{ row.bank_transaction_type }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="empty-state">No rows found.</p>
+                {% endif %}
+            </section>
+        </div>
+    </div>
 </body>
 </html>
