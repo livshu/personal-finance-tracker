@@ -115,14 +115,19 @@
             <div class="section-heading">
                 <div>
                     <p class="section-kicker">Visual breakdown</p>
-                    <h2>Current month spending by category chart</h2>
+                    <h2>Current month spending by category charts</h2>
                 </div>
             </div>
-            <div
-                class="chart-wrapper"
-                style="height: {% widthratio category_chart_labels|length 1 70 %}px; min-height: 320px;"
-            >
-                <canvas id="categorySpendingChart"></canvas>
+            <div class="chart-grid">
+                <div
+                    class="chart-wrapper chart-wrapper-bar"
+                    style="height: {% widthratio category_chart_labels|length 1 70 %}px; min-height: 320px;"
+                >
+                    <canvas id="categorySpendingChart"></canvas>
+                </div>
+                <div class="chart-wrapper chart-wrapper-pie">
+                    <canvas id="categorySpendingPieChart"></canvas>
+                </div>
             </div>
         </section>
 
@@ -161,20 +166,60 @@
     <script>
         const categoryChartLabels = {{ category_chart_labels|safe }};
         const categoryChartValues = {{ category_chart_values|safe }};
-
         const categoryChartCanvas = document.getElementById("categorySpendingChart");
+        const categoryPieChartCanvas = document.getElementById("categorySpendingPieChart");
+
+        const iconMap = [
+            { match: ["bill", "rent", "mortgage", "council tax", "insurance"], icon: "💵" },
+            { match: ["utility", "water", "gas", "electric", "energy", "broadband"], icon: "🚰" },
+            { match: ["grocery", "food", "supermarket"], icon: "🛒" },
+            { match: ["travel", "transport", "train", "fuel", "petrol"], icon: "🚗" },
+            { match: ["dining", "restaurant", "takeaway", "coffee"], icon: "🍽️" },
+            { match: ["shopping", "clothes", "retail"], icon: "🛍️" },
+            { match: ["health", "medical", "pharmacy", "fitness"], icon: "💊" },
+            { match: ["entertainment", "fun", "subscription", "streaming"], icon: "🎬" },
+            { match: ["salary", "income", "pay"], icon: "💼" }
+        ];
+
+        function getCategoryIcon(label) {
+            const normalizedLabel = label.toLowerCase();
+
+            for (const entry of iconMap) {
+                if (entry.match.some((term) => normalizedLabel.includes(term))) {
+                    return entry.icon;
+                }
+            }
+
+            return "•";
+        }
+
+        const chartLabelsWithIcons = categoryChartLabels.map((label) => `${getCategoryIcon(label)} ${label}`);
+        const chartPalette = [
+            "#0f766e",
+            "#14b8a6",
+            "#f59e0b",
+            "#ef4444",
+            "#3b82f6",
+            "#8b5cf6",
+            "#ec4899",
+            "#84cc16",
+            "#f97316",
+            "#06b6d4"
+        ];
+        const pieChartColors = categoryChartLabels.map((_, index) => chartPalette[index % chartPalette.length]);
+        let barChart;
 
         if (categoryChartCanvas && categoryChartLabels.length > 0) {
-            new Chart(categoryChartCanvas, {
+            barChart = new Chart(categoryChartCanvas, {
                 type: "bar",
                 data: {
-                    labels: categoryChartLabels,
+                    labels: chartLabelsWithIcons,
                     datasets: [
                         {
                             label: "Spend (£)",
                             data: categoryChartValues,
-                            backgroundColor: "#0f766e",
-                            borderColor: "#0f766e",
+                            backgroundColor: pieChartColors,
+                            borderColor: pieChartColors,
                             borderWidth: 1,
                             borderRadius: 8,
                             barThickness: 28,
@@ -247,6 +292,9 @@
                         },
                         tooltip: {
                             callbacks: {
+                                title: function(context) {
+                                    return categoryChartLabels[context[0].dataIndex];
+                                },
                                 label: function(context) {
                                     return " £" + Number(context.raw).toFixed(2);
                                 }
@@ -264,6 +312,75 @@
                         }
                     }
                 ]
+            });
+        }
+
+        if (categoryPieChartCanvas && categoryChartLabels.length > 0) {
+            const totalSpend = categoryChartValues.reduce((sum, value) => sum + Number(value), 0);
+
+            new Chart(categoryPieChartCanvas, {
+                type: "doughnut",
+                data: {
+                    labels: chartLabelsWithIcons,
+                    datasets: [
+                        {
+                            data: categoryChartValues,
+                            backgroundColor: pieChartColors,
+                            borderColor: "#f8fafc",
+                            borderWidth: 3,
+                            hoverOffset: 14
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: "48%",
+                    plugins: {
+                        legend: {
+                            position: "bottom",
+                            labels: {
+                                usePointStyle: true,
+                                boxWidth: 10,
+                                padding: 18,
+                                color: "#334155",
+                                font: {
+                                    size: 12,
+                                    weight: "700"
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    return categoryChartLabels[context[0].dataIndex];
+                                },
+                                label: function(context) {
+                                    const value = Number(context.raw);
+                                    const percentage = totalSpend ? ((value / totalSpend) * 100).toFixed(1) : "0.0";
+
+                                    return ` £${value.toFixed(2)} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    },
+                    onHover: function(event, activeElements, chart) {
+                        event.native.target.style.cursor = activeElements.length ? "pointer" : "default";
+
+                        if (!barChart) {
+                            return;
+                        }
+
+                        const activeIndex = activeElements.length ? activeElements[0].index : null;
+                        const baseColors = pieChartColors.map((color, index) =>
+                            activeIndex === null || index === activeIndex ? color : `${color}55`
+                        );
+
+                        barChart.data.datasets[0].backgroundColor = baseColors;
+                        barChart.data.datasets[0].borderColor = baseColors;
+                        barChart.update("none");
+                    }
+                }
             });
         }
     </script>
