@@ -93,6 +93,15 @@ This allows early validation of:
 
 before building custom pages or dashboards.
 
+## Bank-specific import parsing
+
+CSV imports are being designed around bank specific parser functions rather than one generic parser.
+
+The planned approach is:
+- one shared import flow in the app
+- separate parsing logic for each supported format, such as Lloyds, Santander, and Amex
+
+This keeps bank specific quirks isolated, and makes the import system easier to extend later!
 
 ## Expected future expansion
 

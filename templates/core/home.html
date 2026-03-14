@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Finance Tracker</title>
+</head>
+<body>
+    <h1>Personal Finance Tracker</h1>
+    <p>This is the first custom page for the project.</p>
+
+    <h2>Current data summary</h2>
+    <ul>
+        <li>Accounts: {{ account_count }}</li>
+        <li>Categories: {{ category_count }}</li>
+        <li>Transactions: {{ transaction_count }}</li>
+    </ul>
+
+    <h2>Recent transactions</h2>
+    {% if recent_transactions %}
+        <ul>
+            {% for transaction in recent_transactions %}
+                <li>
+                    {{ transaction.date }} —
+                    {{ transaction.description_raw }} —
+                    £{{ transaction.amount }} —
+                    {{ transaction.account }}
+                    {% if transaction.category %}
+                        — {{ transaction.category }}
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No transactions yet.</p>
+    {% endif %}
+</body>
+</html>
+<h2>Finance summary</h2>
+<ul>
+    <li>Total debit amount: £{{ debit_total }}</li>
+    <li>Total credit amount: £{{ credit_total }}</li>
+    <li>Transfer transactions: {{ transfer_count }}</li>
+    <li>Excluded transactions: {{ excluded_count }}</li>
+</ul>
