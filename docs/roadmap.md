@@ -11,6 +11,7 @@ So far, the focus has been on:
 - registering models in Django admin
 - adding basic model tests
 - documenting the structure and data model
+- Lloyds CSV import now supports upload, preview, and confirm import; next focus is duplicate protection and import UX improvements
 
 ## Short-term next steps
 

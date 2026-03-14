@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
-from .models import Account, Category, Transaction
+from core.models import Account, Category, Transaction
 
 
 class AccountModelTests(TestCase):
