@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amex Import Complete</title>
+</head>
+<body>
+    <h1>Amex Import Complete</h1>
+
+    <p><strong>Account:</strong> {{ account }}</p>
+    <p><strong>Uploaded file:</strong> {{ uploaded_file_name }}</p>
+
+    <ul>
+        <li><strong>Imported:</strong> {{ imported_count }}</li>
+        <li><strong>Skipped:</strong> {{ skipped_count }}</li>
+    </ul>
+
+    <p><a href="/import/amex/">Import another Amex CSV</a></p>
+    <p><a href="/">Back to homepage</a></p>
+</body>
+</html>

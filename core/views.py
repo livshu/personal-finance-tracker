@@ -1,12 +1,20 @@
+from decimal import Decimal
+
 from django.db.models import Sum
-from .models import Account, Category, Transaction
-from core.importers.lloyds import LloydsCSVFormatError, parse_lloyds_csv
+from django.db.models.functions import Coalesce
 from django.shortcuts import redirect, render
 from django.utils import timezone
-from decimal import Decimal
-from django.db.models.functions import Coalesce
-from core.forms import LloydsCSVUploadForm, SantanderCSVUploadForm
+from core.reporting import get_reporting_amount
+from .models import Account, Category, Transaction
+from core.forms import (
+    AmexCSVUploadForm,
+    LloydsCSVUploadForm,
+    SantanderCSVUploadForm,
+)
+from core.importers.amex import AmexCSVFormatError, parse_amex_csv
+from core.importers.lloyds import LloydsCSVFormatError, parse_lloyds_csv
 from core.importers.santander import SantanderCSVFormatError, parse_santander_csv
+
 
 def home(request):
     today = timezone.localdate()
@@ -16,24 +24,28 @@ def home(request):
         "account", "category"
     ).order_by("-date", "-id")[:5]
 
-    monthly_debit_total = (
-        Transaction.objects.filter(
-            transaction_type=Transaction.TransactionType.DEBIT,
-            is_excluded=False,
-            date__gte=month_start,
-            date__lte=today,
-        ).aggregate(total=Sum("amount"))["total"]
-        or Decimal("0.00")
+    monthly_debit_transactions = Transaction.objects.select_related("account").filter(
+        transaction_type=Transaction.TransactionType.DEBIT,
+        is_excluded=False,
+        date__gte=month_start,
+        date__lte=today,
     )
 
-    monthly_credit_total = (
-        Transaction.objects.filter(
-            transaction_type=Transaction.TransactionType.CREDIT,
-            is_excluded=False,
-            date__gte=month_start,
-            date__lte=today,
-        ).aggregate(total=Sum("amount"))["total"]
-        or Decimal("0.00")
+    monthly_credit_transactions = Transaction.objects.select_related("account").filter(
+        transaction_type=Transaction.TransactionType.CREDIT,
+        is_excluded=False,
+        date__gte=month_start,
+        date__lte=today,
+    )
+
+    monthly_debit_total = sum(
+        (get_reporting_amount(transaction) for transaction in monthly_debit_transactions),
+        start=Decimal("0.00"),
+    )
+
+    monthly_credit_total = sum(
+        (get_reporting_amount(transaction) for transaction in monthly_credit_transactions),
+        start=Decimal("0.00"),
     )
 
     monthly_transfer_count = Transaction.objects.filter(
@@ -48,19 +60,36 @@ def home(request):
         date__lte=today,
     ).count()
 
-    monthly_spending_by_category = (
-        Transaction.objects.filter(
-            transaction_type=Transaction.TransactionType.DEBIT,
-            is_excluded=False,
-            is_transfer=False,
-            date__gte=month_start,
-            date__lte=today,
-            category__isnull=False,
-        )
-        .values("category__name")
-        .annotate(total=Coalesce(Sum("amount"), Decimal("0.00")))
-        .order_by("-total")
+    monthly_category_transactions = Transaction.objects.select_related(
+        "account", "category"
+    ).filter(
+        transaction_type=Transaction.TransactionType.DEBIT,
+        is_excluded=False,
+        is_transfer=False,
+        date__gte=month_start,
+        date__lte=today,
+        category__isnull=False,
     )
+
+    category_totals = {}
+
+    for transaction in monthly_category_transactions:
+        category_name = transaction.category.name
+        reporting_amount = get_reporting_amount(transaction)
+
+        if category_name not in category_totals:
+            category_totals[category_name] = Decimal("0.00")
+
+        category_totals[category_name] += reporting_amount
+
+    monthly_spending_by_category = [
+        {"category__name": name, "total": total}
+        for name, total in sorted(
+            category_totals.items(),
+            key=lambda item: item[1],
+            reverse=True,
+        )
+    ]
 
     context = {
         "account_count": Account.objects.count(),
@@ -213,6 +242,72 @@ def import_santander_csv(request):
 
     return render(request, "core/import_santander.html", {"form": form})
 
+
+def import_amex_csv(request):
+    form = AmexCSVUploadForm()
+
+    if request.method == "POST":
+        form = AmexCSVUploadForm(request.POST, request.FILES)
+
+        if form.is_valid():
+            account = form.cleaned_data["account"]
+            csv_file = form.cleaned_data["csv_file"]
+
+            try:
+                parsed_rows = parse_amex_csv(csv_file)
+            except AmexCSVFormatError as exc:
+                form.add_error("csv_file", str(exc))
+            else:
+                preview_debit_rows = [
+                    row for row in parsed_rows if row["transaction_type"] == "debit"
+                ]
+                preview_credit_rows = [
+                    row for row in parsed_rows if row["transaction_type"] == "credit"
+                ]
+
+                preview_debit_total = sum(
+                    (row["amount"] for row in preview_debit_rows),
+                    start=Decimal("0.00"),
+                )
+                preview_credit_total = sum(
+                    (row["amount"] for row in preview_credit_rows),
+                    start=Decimal("0.00"),
+                )
+
+                serializable_rows = [
+                    {
+                        "date": row["date"].isoformat(),
+                        "description_raw": row["description_raw"],
+                        "transaction_type": row["transaction_type"],
+                        "amount": str(row["amount"]),
+                        "appears_on_statement_as": row["appears_on_statement_as"],
+                        "reference": row["reference"],
+                        "category_label": row["category_label"],
+                    }
+                    for row in parsed_rows
+                ]
+
+                request.session["amex_import_preview"] = {
+                    "account_id": account.id,
+                    "uploaded_file_name": csv_file.name,
+                    "parsed_rows": serializable_rows,
+                }
+
+                return render(
+                    request,
+                    "core/amex_preview.html",
+                    {
+                        "account": account,
+                        "uploaded_file_name": csv_file.name,
+                        "parsed_rows": parsed_rows,
+                        "preview_debit_count": len(preview_debit_rows),
+                        "preview_credit_count": len(preview_credit_rows),
+                        "preview_debit_total": preview_debit_total,
+                        "preview_credit_total": preview_credit_total,
+                    },
+                )
+
+    return render(request, "core/import_amex.html", {"form": form})
 def confirm_santander_import(request):
     if request.method != "POST":
         return redirect("import_santander_csv")
@@ -337,6 +432,164 @@ def confirm_lloyds_import(request):
     return render(
         request,
         "core/lloyds_import_success.html",
+        {
+            "account": account,
+            "imported_count": len(transactions_to_create),
+            "skipped_count": skipped_count,
+            "uploaded_file_name": uploaded_file_name,
+        },
+    )
+
+def import_amex_csv(request):
+    form = AmexCSVUploadForm()
+
+    if request.method == "POST":
+        form = AmexCSVUploadForm(request.POST, request.FILES)
+
+        if form.is_valid():
+            account = form.cleaned_data["account"]
+            csv_file = form.cleaned_data["csv_file"]
+
+            try:
+                parsed_rows = parse_amex_csv(csv_file)
+            except AmexCSVFormatError as exc:
+                form.add_error("csv_file", str(exc))
+            else:
+                preview_rows = []
+
+                for row in parsed_rows:
+                    already_exists = Transaction.objects.filter(
+                        account=account,
+                        date=row["date"],
+                        amount=row["amount"],
+                        description_raw=row["description_raw"],
+                        transaction_type=row["transaction_type"],
+                    ).exists()
+
+                    preview_rows.append(
+                        {
+                            **row,
+                            "is_duplicate": already_exists,
+                        }
+                    )
+
+                preview_debit_rows = [
+                    row for row in preview_rows if row["transaction_type"] == "debit"
+                ]
+                preview_credit_rows = [
+                    row for row in preview_rows if row["transaction_type"] == "credit"
+                ]
+
+                preview_debit_total = sum(
+                    (row["amount"] for row in preview_debit_rows),
+                    start=Decimal("0.00"),
+                )
+                preview_credit_total = sum(
+                    (row["amount"] for row in preview_credit_rows),
+                    start=Decimal("0.00"),
+                )
+
+                duplicate_count = sum(
+                    1 for row in preview_rows if row["is_duplicate"]
+                )
+                new_row_count = len(preview_rows) - duplicate_count
+
+                serializable_rows = [
+                    {
+                        "date": row["date"].isoformat(),
+                        "description_raw": row["description_raw"],
+                        "transaction_type": row["transaction_type"],
+                        "amount": str(row["amount"]),
+                        "appears_on_statement_as": row["appears_on_statement_as"],
+                        "reference": row["reference"],
+                        "category_label": row["category_label"],
+                        "is_duplicate": row["is_duplicate"],
+                    }
+                    for row in preview_rows
+                ]
+
+                request.session["amex_import_preview"] = {
+                    "account_id": account.id,
+                    "uploaded_file_name": csv_file.name,
+                    "parsed_rows": serializable_rows,
+                }
+
+                return render(
+                    request,
+                    "core/amex_preview.html",
+                    {
+                        "account": account,
+                        "uploaded_file_name": csv_file.name,
+                        "parsed_rows": preview_rows,
+                        "preview_debit_count": len(preview_debit_rows),
+                        "preview_credit_count": len(preview_credit_rows),
+                        "preview_debit_total": preview_debit_total,
+                        "preview_credit_total": preview_credit_total,
+                        "duplicate_count": duplicate_count,
+                        "new_row_count": new_row_count,
+                    },
+                )
+
+    return render(request, "core/import_amex.html", {"form": form})
+
+def confirm_amex_import(request):
+    if request.method != "POST":
+        return redirect("import_amex_csv")
+
+    preview_data = request.session.get("amex_import_preview")
+    if not preview_data:
+        return redirect("import_amex_csv")
+
+    account = Account.objects.get(id=preview_data["account_id"])
+    uploaded_file_name = preview_data["uploaded_file_name"]
+    parsed_rows = preview_data["parsed_rows"]
+
+    transactions_to_create = []
+    imported_at = timezone.now()
+    skipped_count = 0
+
+    for row in parsed_rows:
+        row_date = row["date"]
+        row_amount = Decimal(row["amount"])
+        row_description = row["description_raw"]
+        row_type = row["transaction_type"]
+
+        already_exists = Transaction.objects.filter(
+            account=account,
+            date=row_date,
+            amount=row_amount,
+            description_raw=row_description,
+            transaction_type=row_type,
+        ).exists()
+
+        if already_exists:
+            skipped_count += 1
+            continue
+
+        transactions_to_create.append(
+            Transaction(
+                account=account,
+                category=None,
+                date=row_date,
+                amount=row_amount,
+                description_raw=row_description,
+                merchant_normalized="",
+                transaction_type=row_type,
+                source_file=uploaded_file_name,
+                imported_at=imported_at,
+                notes="Amex import",
+                is_transfer=False,
+                is_excluded=False,
+            )
+        )
+
+    Transaction.objects.bulk_create(transactions_to_create)
+
+    del request.session["amex_import_preview"]
+
+    return render(
+        request,
+        "core/amex_import_success.html",
         {
             "account": account,
             "imported_count": len(transactions_to_create),

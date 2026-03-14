@@ -21,3 +21,12 @@ class SantanderCSVUploadForm(forms.Form):
     csv_file = forms.FileField(
         help_text="Upload a Santander CSV export.",
     )
+
+class AmexCSVUploadForm(forms.Form):
+    account = forms.ModelChoiceField(
+        queryset=Account.objects.all(),
+        help_text="Choose the existing account this Amex CSV belongs to.",
+    )
+    csv_file = forms.FileField(
+        help_text="Upload an Amex CSV export.",
+    )

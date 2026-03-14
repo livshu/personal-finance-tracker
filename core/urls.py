@@ -1,9 +1,11 @@
 from django.urls import path
 
 from .views import (
+    confirm_amex_import,
     confirm_lloyds_import,
     confirm_santander_import,
     home,
+    import_amex_csv,
     import_lloyds_csv,
     import_santander_csv,
 )
@@ -21,5 +23,11 @@ urlpatterns = [
         "import/santander/confirm/",
         confirm_santander_import,
         name="confirm_santander_import",
+    ),
+    path("import/amex/", import_amex_csv, name="import_amex_csv"),
+    path(
+        "import/amex/confirm/",
+        confirm_amex_import,
+        name="confirm_amex_import",
     ),
 ]
