@@ -22,6 +22,13 @@ class ReportingAmountTests(TestCase):
             institution="Santander",
             currency="GBP",
         )
+        self.non_santander_joint_account = Account.objects.create(
+            name="Monzo Joint",
+            account_type=Account.AccountType.CURRENT,
+            owner_type=Account.OwnerType.JOINT,
+            institution="Monzo",
+            currency="GBP",
+        )
 
     def test_get_reporting_amount_returns_full_amount_for_personal_account(self):
         transaction = Transaction.objects.create(
@@ -70,6 +77,22 @@ class ReportingAmountTests(TestCase):
         reporting_amount = get_reporting_amount(transaction)
 
         self.assertEqual(reporting_amount, Decimal("500.00"))
+
+    def test_get_reporting_amount_keeps_non_santander_joint_accounts_at_full_value(self):
+        transaction = Transaction.objects.create(
+            account=self.non_santander_joint_account,
+            date="2026-03-14",
+            amount=Decimal("80.00"),
+            description_raw="MONZO JOINT",
+            merchant_normalized="",
+            transaction_type=Transaction.TransactionType.DEBIT,
+            is_transfer=False,
+            is_excluded=False,
+        )
+
+        reporting_amount = get_reporting_amount(transaction)
+
+        self.assertEqual(reporting_amount, Decimal("80.00"))
 
 
 
