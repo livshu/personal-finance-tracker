@@ -50,17 +50,21 @@ CATEGORY_RULES = {
     "LinkedIn": "Entertainment",
 
     # Health / fitness
-    "Yogahaven": "Entertainment",
-    "Yoga Union": "Entertainment",
     "Treatwell": "Shopping",
     "Patient Zone": "Bills",
 
-    # Learning / career
-    "DataCamp": "Entertainment",
-    "Coursera": "Entertainment",
-    "Udemy": "Entertainment",
-    "Pearson VUE": "Bills",
-    "JobTestPrep": "Entertainment",
+    # Education
+    "Coursera": "Education",
+    "Udemy": "Education",
+    "Pearson VUE": "Education",
+    "JobTestPrep": "Education",
+    "DataCamp": "Education",
+    "OpenAI": "Education",
+    "LinkedIn": "Education",
+
+    # Health and wellness:
+    "Yogahaven": "Health and Wellness",
+    "Yoga Union": "Health and Wellness",
 }
 
 

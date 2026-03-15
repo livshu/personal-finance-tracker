@@ -1,11 +1,6 @@
-from decimal import Decimal
-from datetime import date
-from django.db.models import Sum
-from django.db.models.functions import Coalesce
 from django.shortcuts import redirect, render
-from django.utils import timezone
-from core.reporting import get_reporting_amount
 from .models import Account, Category, Transaction
+from decimal import Decimal
 from core.forms import (
     AmexCSVUploadForm,
     LloydsCSVUploadForm,
@@ -15,34 +10,17 @@ from core.importers.amex import AmexCSVFormatError, parse_amex_csv
 from core.importers.lloyds import LloydsCSVFormatError, parse_lloyds_csv
 from core.importers.santander import SantanderCSVFormatError, parse_santander_csv
 from core.import_services import build_transactions_for_import
+from core.dashboard import (
+    get_monthly_category_breakdown,
+    get_monthly_summary,
+    get_selected_month_window,
+    get_uncategorized_metrics,
+)
 
 def home(request):
-    today = timezone.localdate()
-    selected_month = request.GET.get("month")
-
-    if selected_month:
-        try:
-            selected_date = date.fromisoformat(selected_month)
-            selected_year = selected_date.year
-            selected_month_number = selected_date.month
-            month_start = date(selected_year, selected_month_number, 1)
-        except (ValueError, TypeError):
-            try:
-                year_str, month_str = selected_month.split("-")
-                selected_year = int(year_str)
-                selected_month_number = int(month_str)
-                month_start = date(selected_year, selected_month_number, 1)
-            except (ValueError, TypeError):
-                month_start = today.replace(day=1)
-    else:
-        month_start = today.replace(day=1)
-
-    if month_start.month == 12:
-        next_month_start = date(month_start.year + 1, 1, 1)
-    else:
-        next_month_start = date(month_start.year, month_start.month + 1, 1)
-
-    month_end = next_month_start - timezone.timedelta(days=1)
+    selected_month, month_start, month_end = get_selected_month_window(
+        request.GET.get("month")
+    )
 
     recent_transactions = (
         Transaction.objects.select_related("account", "category")
@@ -50,31 +28,10 @@ def home(request):
         .order_by("-date", "-id")[:10]
     )
 
-    monthly_debit_transactions = Transaction.objects.select_related("account").filter(
-        transaction_type=Transaction.TransactionType.DEBIT,
-        is_excluded=False,
-        date__gte=month_start,
-        date__lte=month_end,
-    )
-
-    monthly_credit_transactions = Transaction.objects.select_related("account").filter(
-        transaction_type=Transaction.TransactionType.CREDIT,
-        is_excluded=False,
-        date__gte=month_start,
-        date__lte=month_end,
-    )
-
-    monthly_debit_total = sum(
-        (get_reporting_amount(transaction) for transaction in monthly_debit_transactions),
-        start=Decimal("0.00"),
-    )
-
-    monthly_credit_total = sum(
-        (get_reporting_amount(transaction) for transaction in monthly_credit_transactions),
-        start=Decimal("0.00"),
-    )
-
-    monthly_net_amount = monthly_credit_total - monthly_debit_total
+    monthly_summary = get_monthly_summary(month_start, month_end)
+    monthly_debit_total = monthly_summary["monthly_debit_total"]
+    monthly_credit_total = monthly_summary["monthly_credit_total"]
+    monthly_net_amount = monthly_summary["monthly_net_amount"]
 
     monthly_transfer_count = Transaction.objects.filter(
         is_transfer=True,
@@ -88,43 +45,18 @@ def home(request):
         date__lte=month_end,
     ).count()
 
-    monthly_category_transactions = Transaction.objects.select_related(
-        "account", "category"
-    ).filter(
-        transaction_type=Transaction.TransactionType.DEBIT,
-        is_excluded=False,
-        is_transfer=False,
-        date__gte=month_start,
-        date__lte=month_end,
-        category__isnull=False,
+    monthly_category_breakdown = get_monthly_category_breakdown(
+        month_start, month_end
     )
-
-    category_totals = {}
-
-    for transaction in monthly_category_transactions:
-        category_name = transaction.category.name
-        reporting_amount = get_reporting_amount(transaction)
-
-        if category_name not in category_totals:
-            category_totals[category_name] = Decimal("0.00")
-
-        category_totals[category_name] += reporting_amount
-
-    monthly_spending_by_category = [
-        {"category__name": name, "total": total}
-        for name, total in sorted(
-            category_totals.items(),
-            key=lambda item: item[1],
-            reverse=True,
-        )
+    monthly_spending_by_category = monthly_category_breakdown[
+        "monthly_spending_by_category"
     ]
-    category_chart_labels = [
-    item["category__name"] for item in monthly_spending_by_category
-    ]
+    category_chart_labels = monthly_category_breakdown["category_chart_labels"]
+    category_chart_values = monthly_category_breakdown["category_chart_values"]
 
-    category_chart_values = [
-        float(item["total"]) for item in monthly_spending_by_category
-    ]
+    uncategorized_metrics = get_uncategorized_metrics(month_start, month_end)
+    uncategorized_transaction_count = uncategorized_metrics["uncategorized_transaction_count"]
+    uncategorized_total = uncategorized_metrics["uncategorized_total"]
 
 
     context = {
@@ -142,6 +74,8 @@ def home(request):
         "category_chart_values": category_chart_values,
         "selected_month": month_start.strftime("%Y-%m"),
         "selected_month_date": month_start.isoformat(),
+        "uncategorized_transaction_count": uncategorized_transaction_count,
+        "uncategorized_total": uncategorized_total,
     }
     return render(request, "core/home.html", context)
 
@@ -298,11 +232,11 @@ def confirm_santander_import(request):
     parsed_rows = preview_data["parsed_rows"]
 
     transactions_to_create, skipped_count = build_transactions_for_import(
-    account=account,
-    uploaded_file_name=uploaded_file_name,
-    parsed_rows=parsed_rows,
-    notes_builder=lambda row: f"Santander import ({row['bank_transaction_type']})",
-)
+        account=account,
+        uploaded_file_name=uploaded_file_name,
+        parsed_rows=parsed_rows,
+        notes_builder=lambda row: f"Santander import ({row['bank_transaction_type']})",
+    )
 
     Transaction.objects.bulk_create(transactions_to_create)
 

@@ -1,4 +1,4 @@
-{% load static %}
+{% load static category_icons %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -70,7 +70,7 @@
                     <h2>This month's finance summary</h2>
                 </div>
             </div>
-            <div class="stat-grid stat-grid-4">
+            <div class="stat-grid stat-grid-5">
                 <article class="stat-card accent-debit">
                     <p class="stat-label">Total debit amount</p>
                     <p class="stat-value">£{{ monthly_debit_total|floatformat:2 }}</p>
@@ -87,7 +87,21 @@
                     <p class="stat-label">Excluded transactions</p>
                     <p class="stat-value">{{ monthly_excluded_count }}</p>
                 </article>
+                <article class="stat-card accent-warning">
+                    <p class="stat-label">Uncategorized spend</p>
+                    <p class="stat-value">£{{ uncategorized_total|floatformat:2 }}</p>
+                    <p class="stat-footnote">{{ uncategorized_transaction_count }} transactions still need review</p>
+                </article>
             </div>
+            {% if uncategorized_transaction_count > 0 %}
+                <div class="callout warning">
+                    <p>
+                        <strong>Data quality note:</strong>
+                        {{ uncategorized_transaction_count }} transactions in this month are still uncategorized,
+                        representing £{{ uncategorized_total|floatformat:2 }} of spend.
+                    </p>
+                </div>
+            {% endif %}
         </section>
 
         <section class="section-card">
@@ -100,10 +114,12 @@
             {% if monthly_spending_by_category %}
                 <ul class="category-list">
                     {% for item in monthly_spending_by_category %}
-                        <li class="category-row">
-                            <span class="category-name">{{ item.category__name }}</span>
-                            <span class="category-amount">£{{ item.total|floatformat:2 }}</span>
-                        </li>
+                    <li class="category-row">
+                        <span class="category-name">
+                            {{ item.category__name|category_icon }} {{ item.category__name }}
+                        </span>
+                        <span class="category-amount">£{{ item.total|floatformat:2 }}</span>
+                    </li>
                     {% endfor %}
                 </ul>
             {% else %}
@@ -171,14 +187,15 @@
 
         const iconMap = [
             { match: ["bill", "rent", "mortgage", "council tax", "insurance"], icon: "💵" },
-            { match: ["utility", "water", "gas", "electric", "energy", "broadband"], icon: "🚰" },
-            { match: ["grocery", "food", "supermarket"], icon: "🛒" },
-            { match: ["travel", "transport", "train", "fuel", "petrol"], icon: "🚗" },
-            { match: ["dining", "restaurant", "takeaway", "coffee"], icon: "🍽️" },
+            { match: ["utility", "utilities", "water", "gas", "electric", "energy", "broadband"], icon: "💡" },
+            { match: ["grocery", "groceries", "food", "supermarket"], icon: "🛒" },
+            { match: ["travel", "transport", "train", "fuel", "petrol", "tfl"], icon: "🚇" },
+            { match: ["dining", "restaurant", "takeaway", "coffee", "eating out"], icon: "🍽️" },
             { match: ["shopping", "clothes", "retail"], icon: "🛍️" },
-            { match: ["health", "medical", "pharmacy", "fitness"], icon: "💊" },
+            { match: ["health", "wellness", "medical", "pharmacy", "fitness"], icon: "🧘" },
             { match: ["entertainment", "fun", "subscription", "streaming"], icon: "🎬" },
-            { match: ["salary", "income", "pay"], icon: "💼" }
+            { match: ["salary", "income", "pay"], icon: "💼" },
+            { match: ["education", "learning", "course", "study"], icon: "📚" }
         ];
 
         function getCategoryIcon(label) {
