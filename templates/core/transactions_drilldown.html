@@ -1,0 +1,76 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ metric_label }} | Personal Finance Tracker</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+</head>
+<body>
+    <div class="import-shell">
+        <div class="import-stack">
+            <section class="import-hero">
+                <div>
+                    <p class="eyebrow">Transaction drilldown</p>
+                    <h1 class="page-title">{{ metric_label }}</h1>
+                    <p class="page-subtitle">
+                        Showing the underlying transactions for {{ selected_month_display }}.
+                    </p>
+                </div>
+                <div class="import-hero-panel">
+                    <p><strong>Selected month:</strong> {{ selected_month_display }}</p>
+                    <p><strong>Matching transactions:</strong> {{ transaction_count }}</p>
+                </div>
+            </section>
+
+            <section class="section-card import-card">
+                <div class="section-heading">
+                    <div>
+                        <p class="section-kicker">Transactions</p>
+                        <h2>{{ metric_label }}</h2>
+                    </div>
+                    <div class="page-actions">
+                        <a class="button-link secondary" href="{% url 'home' %}?month={{ selected_month }}">Back to dashboard</a>
+                    </div>
+                </div>
+
+                {% if transactions %}
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Account</th>
+                                    <th>Category</th>
+                                    <th>Type</th>
+                                    <th>Amount</th>
+                                    <th>Transfer</th>
+                                    <th>Excluded</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transaction in transactions %}
+                                    <tr>
+                                        <td>{{ transaction.date }}</td>
+                                        <td>{{ transaction.description_raw }}</td>
+                                        <td>{{ transaction.account }}</td>
+                                        <td>{% if transaction.category %}{{ transaction.category }}{% else %}-{% endif %}</td>
+                                        <td>{{ transaction.get_transaction_type_display }}</td>
+                                        <td>£{{ transaction.amount|floatformat:2 }}</td>
+                                        <td>{{ transaction.is_transfer|yesno:"Yes,No" }}</td>
+                                        <td>{{ transaction.is_excluded|yesno:"Yes,No" }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="empty-state">No transactions matched this metric for {{ selected_month_display }}.</p>
+                {% endif %}
+            </section>
+        </div>
+    </div>
+</body>
+</html>

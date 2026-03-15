@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.utils import timezone
-
+from core.transfer_rules import is_transfer_description
 from core.categorization import suggest_category_for_merchant
 from core.models import Transaction
 from core.normalization import normalize_merchant
@@ -51,7 +51,7 @@ def build_transactions_for_import(account, uploaded_file_name, parsed_rows, note
                 source_file=uploaded_file_name,
                 imported_at=imported_at,
                 notes=notes_builder(row),
-                is_transfer=False,
+                is_transfer=is_transfer_description(row_description),
                 is_excluded=False,
             )
         )

@@ -1,3 +1,4 @@
+from django.http import Http404
 from django.shortcuts import redirect, render
 from .models import Account, Category, Transaction
 from decimal import Decimal
@@ -14,6 +15,7 @@ from core.dashboard import (
     get_monthly_category_breakdown,
     get_monthly_summary,
     get_selected_month_window,
+    get_transaction_drilldown_queryset,
     get_uncategorized_metrics,
 )
 
@@ -78,6 +80,29 @@ def home(request):
         "uncategorized_total": uncategorized_total,
     }
     return render(request, "core/home.html", context)
+
+
+def transactions_drilldown(request):
+    selected_month, month_start, month_end = get_selected_month_window(
+        request.GET.get("month")
+    )
+    metric = request.GET.get("metric")
+    metric_label, transactions = get_transaction_drilldown_queryset(
+        metric, month_start, month_end
+    )
+
+    if transactions is None:
+        raise Http404("Unknown transactions drilldown metric.")
+
+    context = {
+        "metric": metric,
+        "metric_label": metric_label,
+        "selected_month": month_start.strftime("%Y-%m"),
+        "selected_month_display": month_start.strftime("%B %Y"),
+        "transaction_count": transactions.count(),
+        "transactions": transactions,
+    }
+    return render(request, "core/transactions_drilldown.html", context)
 
 def import_lloyds_csv(request):
     form = LloydsCSVUploadForm()

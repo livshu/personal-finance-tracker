@@ -7,6 +7,45 @@ from core.models import Transaction
 from core.reporting import get_reporting_amount
 
 
+TRANSACTION_DRILLDOWN_METRICS = {
+    "debit": {
+        "label": "Total debit transactions",
+        "filters": {
+            "transaction_type": Transaction.TransactionType.DEBIT,
+            "is_excluded": False,
+        },
+    },
+    "credit": {
+        "label": "Total credit transactions",
+        "filters": {
+            "transaction_type": Transaction.TransactionType.CREDIT,
+            "is_excluded": False,
+        },
+    },
+    "transfer": {
+        "label": "Transfer transactions",
+        "filters": {
+            "is_transfer": True,
+        },
+    },
+    "excluded": {
+        "label": "Excluded transactions",
+        "filters": {
+            "is_excluded": True,
+        },
+    },
+    "uncategorized": {
+        "label": "Uncategorized spend transactions",
+        "filters": {
+            "transaction_type": Transaction.TransactionType.DEBIT,
+            "is_excluded": False,
+            "is_transfer": False,
+            "category__isnull": True,
+        },
+    },
+}
+
+
 def get_selected_month_window(selected_month: str | None):
     """
     Return the selected month string plus the start/end dates for that month.
@@ -160,3 +199,25 @@ def get_uncategorized_metrics(month_start, month_end):
         "uncategorized_transaction_count": uncategorized_transactions.count(),
         "uncategorized_total": uncategorized_total,
     }
+
+
+def get_transaction_drilldown_queryset(metric, month_start, month_end):
+    """
+    Return the label and queryset for a supported drilldown metric.
+    """
+    metric_config = TRANSACTION_DRILLDOWN_METRICS.get(metric)
+
+    if metric_config is None:
+        return None, None
+
+    transactions = (
+        Transaction.objects.select_related("account", "category")
+        .filter(
+            date__gte=month_start,
+            date__lte=month_end,
+            **metric_config["filters"],
+        )
+        .order_by("-date", "-id")
+    )
+
+    return metric_config["label"], transactions

@@ -8,10 +8,12 @@ from .views import (
     import_amex_csv,
     import_lloyds_csv,
     import_santander_csv,
+    transactions_drilldown,
 )
 
 urlpatterns = [
     path("", home, name="home"),
+    path("transactions/", transactions_drilldown, name="transactions_drilldown"),
     path("import/lloyds/", import_lloyds_csv, name="import_lloyds_csv"),
     path(
         "import/lloyds/confirm/",

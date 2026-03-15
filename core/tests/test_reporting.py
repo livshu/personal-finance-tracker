@@ -1,6 +1,7 @@
 from decimal import Decimal
 from datetime import date
 from django.test import TestCase
+from django.urls import reverse
 from core.models import Account, Category, Transaction
 from core.reporting import get_reporting_amount
 
@@ -154,3 +155,145 @@ class HomeReportingTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["selected_month"], today.strftime("%Y-%m"))
         self.assertEqual(response.context["selected_month_date"], today.isoformat())
+
+    def test_home_kpi_tiles_link_to_transactions_drilldown(self):
+        response = self.client.get("/")
+
+        self.assertContains(
+            response,
+            f'{reverse("transactions_drilldown")}?month={date.today().strftime("%Y-%m")}&metric=debit',
+        )
+        self.assertContains(
+            response,
+            f'{reverse("transactions_drilldown")}?month={date.today().strftime("%Y-%m")}&metric=credit',
+        )
+        self.assertContains(
+            response,
+            f'{reverse("transactions_drilldown")}?month={date.today().strftime("%Y-%m")}&metric=transfer',
+        )
+        self.assertContains(
+            response,
+            f'{reverse("transactions_drilldown")}?month={date.today().strftime("%Y-%m")}&metric=excluded',
+        )
+        self.assertContains(
+            response,
+            f'{reverse("transactions_drilldown")}?month={date.today().strftime("%Y-%m")}&metric=uncategorized',
+        )
+
+
+class TransactionsDrilldownTests(TestCase):
+    def setUp(self):
+        self.personal_account = Account.objects.create(
+            name="Lloyds Personal",
+            account_type=Account.AccountType.CURRENT,
+            owner_type=Account.OwnerType.PERSONAL,
+            institution="Lloyds",
+            currency="GBP",
+        )
+        self.joint_account = Account.objects.create(
+            name="Santander Joint",
+            account_type=Account.AccountType.CURRENT,
+            owner_type=Account.OwnerType.JOINT,
+            institution="Santander",
+            currency="GBP",
+        )
+        self.groceries = Category.objects.create(name="Groceries", is_income=False)
+        self.salary = Category.objects.create(name="Salary", is_income=True)
+        self.selected_month = date.today().replace(day=1)
+        self.outside_month = (
+            date(self.selected_month.year - 1, 12, 15)
+            if self.selected_month.month == 1
+            else date(self.selected_month.year, self.selected_month.month - 1, 15)
+        )
+
+        self.debit_transaction = Transaction.objects.create(
+            account=self.personal_account,
+            date=self.selected_month.replace(day=20),
+            amount=Decimal("25.00"),
+            description_raw="MONTHLY DEBIT",
+            merchant_normalized="",
+            category=self.groceries,
+            transaction_type=Transaction.TransactionType.DEBIT,
+            is_transfer=False,
+            is_excluded=False,
+        )
+        self.credit_transaction = Transaction.objects.create(
+            account=self.joint_account,
+            date=self.selected_month.replace(day=18),
+            amount=Decimal("1000.00"),
+            description_raw="MONTHLY CREDIT",
+            merchant_normalized="",
+            category=self.salary,
+            transaction_type=Transaction.TransactionType.CREDIT,
+            is_transfer=False,
+            is_excluded=False,
+        )
+        self.transfer_transaction = Transaction.objects.create(
+            account=self.personal_account,
+            date=self.selected_month.replace(day=16),
+            amount=Decimal("15.00"),
+            description_raw="MONTHLY TRANSFER",
+            merchant_normalized="",
+            transaction_type=Transaction.TransactionType.DEBIT,
+            is_transfer=True,
+            is_excluded=False,
+        )
+        self.excluded_transaction = Transaction.objects.create(
+            account=self.personal_account,
+            date=self.selected_month.replace(day=14),
+            amount=Decimal("9.00"),
+            description_raw="MONTHLY EXCLUDED",
+            merchant_normalized="",
+            transaction_type=Transaction.TransactionType.DEBIT,
+            is_transfer=False,
+            is_excluded=True,
+        )
+        self.uncategorized_transaction = Transaction.objects.create(
+            account=self.personal_account,
+            date=self.selected_month.replace(day=12),
+            amount=Decimal("30.00"),
+            description_raw="MONTHLY UNCATEGORIZED",
+            merchant_normalized="",
+            category=None,
+            transaction_type=Transaction.TransactionType.DEBIT,
+            is_transfer=False,
+            is_excluded=False,
+        )
+        Transaction.objects.create(
+            account=self.personal_account,
+            date=self.outside_month,
+            amount=Decimal("99.00"),
+            description_raw="OLD MONTH DEBIT",
+            merchant_normalized="",
+            category=self.groceries,
+            transaction_type=Transaction.TransactionType.DEBIT,
+            is_transfer=False,
+            is_excluded=False,
+        )
+
+    def test_transactions_drilldown_filters_each_metric(self):
+        metric_expectations = {
+            "debit": [
+                self.debit_transaction,
+                self.transfer_transaction,
+                self.uncategorized_transaction,
+            ],
+            "credit": [self.credit_transaction],
+            "transfer": [self.transfer_transaction],
+            "excluded": [self.excluded_transaction],
+            "uncategorized": [self.uncategorized_transaction],
+        }
+
+        for metric, expected_transactions in metric_expectations.items():
+            with self.subTest(metric=metric):
+                response = self.client.get(
+                    reverse("transactions_drilldown"),
+                    {"month": self.selected_month.strftime("%Y-%m"), "metric": metric},
+                )
+
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(list(response.context["transactions"]), expected_transactions)
+                self.assertEqual(
+                    response.context["transaction_count"],
+                    len(expected_transactions),
+                )

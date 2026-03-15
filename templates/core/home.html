@@ -71,27 +71,47 @@
                 </div>
             </div>
             <div class="stat-grid stat-grid-5">
-                <article class="stat-card accent-debit">
+                <a
+                    class="stat-card stat-card-link accent-debit"
+                    href="{% url 'transactions_drilldown' %}?month={{ selected_month }}&metric=debit"
+                    aria-label="View debit transactions for {{ selected_month }}"
+                >
                     <p class="stat-label">Total debit amount</p>
                     <p class="stat-value">£{{ monthly_debit_total|floatformat:2 }}</p>
-                </article>
-                <article class="stat-card accent-credit">
+                </a>
+                <a
+                    class="stat-card stat-card-link accent-credit"
+                    href="{% url 'transactions_drilldown' %}?month={{ selected_month }}&metric=credit"
+                    aria-label="View credit transactions for {{ selected_month }}"
+                >
                     <p class="stat-label">Total credit amount</p>
                     <p class="stat-value">£{{ monthly_credit_total|floatformat:2 }}</p>
-                </article>
-                <article class="stat-card">
+                </a>
+                <a
+                    class="stat-card stat-card-link"
+                    href="{% url 'transactions_drilldown' %}?month={{ selected_month }}&metric=transfer"
+                    aria-label="View transfer transactions for {{ selected_month }}"
+                >
                     <p class="stat-label">Transfer transactions</p>
                     <p class="stat-value">{{ monthly_transfer_count }}</p>
-                </article>
-                <article class="stat-card">
+                </a>
+                <a
+                    class="stat-card stat-card-link"
+                    href="{% url 'transactions_drilldown' %}?month={{ selected_month }}&metric=excluded"
+                    aria-label="View excluded transactions for {{ selected_month }}"
+                >
                     <p class="stat-label">Excluded transactions</p>
                     <p class="stat-value">{{ monthly_excluded_count }}</p>
-                </article>
-                <article class="stat-card accent-warning">
+                </a>
+                <a
+                    class="stat-card stat-card-link accent-warning"
+                    href="{% url 'transactions_drilldown' %}?month={{ selected_month }}&metric=uncategorized"
+                    aria-label="View uncategorized transactions for {{ selected_month }}"
+                >
                     <p class="stat-label">Uncategorized spend</p>
                     <p class="stat-value">£{{ uncategorized_total|floatformat:2 }}</p>
                     <p class="stat-footnote">{{ uncategorized_transaction_count }} transactions still need review</p>
-                </article>
+                </a>
             </div>
             {% if uncategorized_transaction_count > 0 %}
                 <div class="callout warning">
