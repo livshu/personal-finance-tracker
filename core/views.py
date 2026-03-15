@@ -5,11 +5,14 @@ from decimal import Decimal
 from core.forms import (
     AmexCSVUploadForm,
     LloydsCSVUploadForm,
-    SantanderCSVUploadForm,
+    SantanderStatementUploadForm,
 )
 from core.importers.amex import AmexCSVFormatError, parse_amex_csv
 from core.importers.lloyds import LloydsCSVFormatError, parse_lloyds_csv
-from core.importers.santander import SantanderCSVFormatError, parse_santander_csv
+from core.importers.santander import (
+    SantanderStatementFormatError,
+    parse_santander_statement,
+)
 from core.import_services import build_transactions_for_import
 from core.dashboard import (
     get_monthly_category_breakdown,
@@ -179,19 +182,19 @@ def import_lloyds_csv(request):
 
 
 def import_santander_csv(request):
-    form = SantanderCSVUploadForm()
+    form = SantanderStatementUploadForm()
 
     if request.method == "POST":
-        form = SantanderCSVUploadForm(request.POST, request.FILES)
+        form = SantanderStatementUploadForm(request.POST, request.FILES)
 
         if form.is_valid():
             account = form.cleaned_data["account"]
-            csv_file = form.cleaned_data["csv_file"]
+            statement_file = form.cleaned_data["statement_file"]
 
             try:
-                parsed_rows = parse_santander_csv(csv_file)
-            except SantanderCSVFormatError as exc:
-                form.add_error("csv_file", str(exc))
+                parsed_rows = parse_santander_statement(statement_file)
+            except SantanderStatementFormatError as exc:
+                form.add_error("statement_file", str(exc))
             else:
                 preview_debit_rows = [
                     row for row in parsed_rows if row["transaction_type"] == "debit"
@@ -222,7 +225,7 @@ def import_santander_csv(request):
 
                 request.session["santander_import_preview"] = {
                     "account_id": account.id,
-                    "uploaded_file_name": csv_file.name,
+                    "uploaded_file_name": statement_file.name,
                     "parsed_rows": serializable_rows,
                 }
 
@@ -231,7 +234,7 @@ def import_santander_csv(request):
                     "core/santander_preview.html",
                     {
                         "account": account,
-                        "uploaded_file_name": csv_file.name,
+                        "uploaded_file_name": statement_file.name,
                         "parsed_rows": parsed_rows,
                         "preview_debit_count": len(preview_debit_rows),
                         "preview_credit_count": len(preview_credit_rows),

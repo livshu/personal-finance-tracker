@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Import Santander CSV</title>
+    <title>Import Santander Statement</title>
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
 </head>
 <body>
@@ -12,9 +12,9 @@
         <div class="import-stack">
             <section class="import-hero">
                 <div>
-                    <p class="eyebrow">CSV import</p>
-                    <h1 class="page-title">Import Santander CSV</h1>
-                    <p class="page-subtitle">Upload a Santander export, assign it to the right account, and preview the parsed rows before confirming.</p>
+                    <p class="eyebrow">Statement import</p>
+                    <h1 class="page-title">Import Santander Statement</h1>
+                    <p class="page-subtitle">Upload a Santander statement export, assign it to the right account, and preview the parsed rows before confirming.</p>
                 </div>
                 <div class="import-hero-panel">
                     <p>The upload flow stays lightweight, but now looks consistent with the main dashboard.</p>
@@ -29,10 +29,10 @@
                 <div class="section-heading">
                     <div>
                         <p class="section-kicker">Upload</p>
-                        <h2>Choose your Santander file</h2>
+                        <h2>Choose your Santander statement file</h2>
                     </div>
                 </div>
-                <p class="intro-text">Pick the CSV and account, then we’ll show you a preview of what will be imported.</p>
+                <p class="intro-text">Pick the statement export and account, then we’ll show you a preview of what will be imported.</p>
                 <form method="post" enctype="multipart/form-data">
                     {% csrf_token %}
                     {{ form.as_p }}

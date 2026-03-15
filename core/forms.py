@@ -13,13 +13,13 @@ class LloydsCSVUploadForm(forms.Form):
     )
 
 
-class SantanderCSVUploadForm(forms.Form):
+class SantanderStatementUploadForm(forms.Form):
     account = forms.ModelChoiceField(
         queryset=Account.objects.all(),
-        help_text="Choose the existing account this Santander CSV belongs to.",
+        help_text="Choose the existing account this Santander statement export belongs to.",
     )
-    csv_file = forms.FileField(
-        help_text="Upload a Santander CSV export.",
+    statement_file = forms.FileField(
+        help_text="Upload a Santander statement export file (.xls from Online Banking).",
     )
 
 class AmexCSVUploadForm(forms.Form):

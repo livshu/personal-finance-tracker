@@ -5,6 +5,7 @@ from core.transfer_rules import is_transfer_description
 from core.categorization import suggest_category_for_merchant
 from core.models import Transaction
 from core.normalization import normalize_merchant
+from core.exclusion_rules import is_excluded_description
 
 
 def build_transactions_for_import(account, uploaded_file_name, parsed_rows, notes_builder):
@@ -52,7 +53,7 @@ def build_transactions_for_import(account, uploaded_file_name, parsed_rows, note
                 imported_at=imported_at,
                 notes=notes_builder(row),
                 is_transfer=is_transfer_description(row_description),
-                is_excluded=False,
+                is_excluded=is_excluded_description(row_description),
             )
         )
 
