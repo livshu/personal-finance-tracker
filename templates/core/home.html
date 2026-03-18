@@ -188,7 +188,12 @@
                                     {% endif %}
                                 </p>
                             </div>
-                            <p class="transaction-amount">£{{ transaction.amount|floatformat:2 }}</p>
+                            <div class="transaction-amount-wrap">
+                                <p class="transaction-amount">£{{ transaction.display_amount|floatformat:2 }}</p>
+                                {% if transaction.has_reporting_adjustment %}
+                                    <p class="amount-footnote">Raw: £{{ transaction.raw_amount|floatformat:2 }}</p>
+                                {% endif %}
+                            </div>
                         </li>
                     {% endfor %}
                 </ul>

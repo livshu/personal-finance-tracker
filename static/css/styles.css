@@ -317,6 +317,11 @@ body {
     color: var(--teal-dark);
 }
 
+.transaction-amount-wrap {
+    flex-shrink: 0;
+    text-align: right;
+}
+
 .chart-card {
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(247, 250, 249, 0.96));
@@ -384,6 +389,14 @@ body {
     padding: 4px 10px;
     border-radius: 999px;
     background: var(--surface-muted);
+}
+
+.amount-footnote {
+    display: inline-block;
+    margin-top: 4px;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    line-height: 1.4;
 }
 
 .empty-state {
@@ -672,6 +685,10 @@ body {
 
     .transaction-amount {
         align-self: flex-start;
+    }
+
+    .transaction-amount-wrap {
+        text-align: left;
     }
 
     .form-actions,

@@ -94,6 +94,29 @@ class ReportingAmountTests(TestCase):
 
         self.assertEqual(reporting_amount, Decimal("80.00"))
 
+    def test_get_reporting_amount_accepts_santander_institution_variants(self):
+        santander_uk_joint_account = Account.objects.create(
+            name="Santander UK Joint",
+            account_type=Account.AccountType.CURRENT,
+            owner_type=Account.OwnerType.JOINT,
+            institution="  Santander UK  ",
+            currency="GBP",
+        )
+        transaction = Transaction.objects.create(
+            account=santander_uk_joint_account,
+            date="2026-03-14",
+            amount=Decimal("2100.00"),
+            description_raw="RENT",
+            merchant_normalized="",
+            transaction_type=Transaction.TransactionType.DEBIT,
+            is_transfer=False,
+            is_excluded=False,
+        )
+
+        reporting_amount = get_reporting_amount(transaction)
+
+        self.assertEqual(reporting_amount, Decimal("1050.00"))
+
 
 
 class HomeReportingTests(TestCase):
@@ -202,6 +225,23 @@ class HomeReportingTests(TestCase):
             response,
             f'{reverse("transactions_drilldown")}?month={date.today().strftime("%Y-%m")}&metric=uncategorized',
         )
+
+    def test_home_recent_transactions_use_reporting_display_amounts(self):
+        response = self.client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+        recent_transactions = response.context["recent_transactions"]
+        joint_transaction = next(
+            transaction
+            for transaction in recent_transactions
+            if transaction.description_raw == "SALARY JOINT"
+        )
+
+        self.assertEqual(joint_transaction.amount, Decimal("1000.00"))
+        self.assertEqual(joint_transaction.display_amount, Decimal("500.00"))
+        self.assertTrue(joint_transaction.has_reporting_adjustment)
+        self.assertContains(response, "£500.00")
+        self.assertContains(response, "Raw: £1000.00")
 
 
 class TransactionsDrilldownTests(TestCase):
@@ -320,3 +360,18 @@ class TransactionsDrilldownTests(TestCase):
                     response.context["transaction_count"],
                     len(expected_transactions),
                 )
+
+    def test_transactions_drilldown_uses_reporting_display_amounts(self):
+        response = self.client.get(
+            reverse("transactions_drilldown"),
+            {"month": self.selected_month.strftime("%Y-%m"), "metric": "credit"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        transaction = response.context["transactions"][0]
+
+        self.assertEqual(transaction.amount, Decimal("1000.00"))
+        self.assertEqual(transaction.display_amount, Decimal("500.00"))
+        self.assertTrue(transaction.has_reporting_adjustment)
+        self.assertContains(response, "£500.00")
+        self.assertContains(response, "Raw: £1000.00")

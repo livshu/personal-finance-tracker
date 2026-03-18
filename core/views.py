@@ -21,16 +21,19 @@ from core.dashboard import (
     get_transaction_drilldown_queryset,
     get_uncategorized_metrics,
 )
+from core.reporting import attach_reporting_display_amounts
 
 def home(request):
     selected_month, month_start, month_end = get_selected_month_window(
         request.GET.get("month")
     )
 
-    recent_transactions = (
+    recent_transactions = attach_reporting_display_amounts(
+        (
         Transaction.objects.select_related("account", "category")
         .filter(date__gte=month_start, date__lte=month_end)
         .order_by("-date", "-id")[:10]
+        )
     )
 
     monthly_summary = get_monthly_summary(month_start, month_end)
@@ -97,12 +100,14 @@ def transactions_drilldown(request):
     if transactions is None:
         raise Http404("Unknown transactions drilldown metric.")
 
+    transactions = attach_reporting_display_amounts(transactions)
+
     context = {
         "metric": metric,
         "metric_label": metric_label,
         "selected_month": month_start.strftime("%Y-%m"),
         "selected_month_display": month_start.strftime("%B %Y"),
-        "transaction_count": transactions.count(),
+        "transaction_count": len(transactions),
         "transactions": transactions,
     }
     return render(request, "core/transactions_drilldown.html", context)

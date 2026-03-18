@@ -58,7 +58,13 @@
                                         <td>{{ transaction.account }}</td>
                                         <td>{% if transaction.category %}{{ transaction.category }}{% else %}-{% endif %}</td>
                                         <td>{{ transaction.get_transaction_type_display }}</td>
-                                        <td>£{{ transaction.amount|floatformat:2 }}</td>
+                                        <td>
+                                            <strong>£{{ transaction.display_amount|floatformat:2 }}</strong>
+                                            {% if transaction.has_reporting_adjustment %}
+                                                <br>
+                                                <span class="amount-footnote">Raw: £{{ transaction.raw_amount|floatformat:2 }}</span>
+                                            {% endif %}
+                                        </td>
                                         <td>{{ transaction.is_transfer|yesno:"Yes,No" }}</td>
                                         <td>{{ transaction.is_excluded|yesno:"Yes,No" }}</td>
                                     </tr>
