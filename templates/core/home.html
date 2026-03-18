@@ -135,9 +135,12 @@
                 <ul class="category-list">
                     {% for item in monthly_spending_by_category %}
                     <li class="category-row">
-                        <span class="category-name">
+                        <a
+                            class="category-name category-link"
+                            href="{% url 'category_transactions_drilldown' %}?month={{ selected_month }}&category={{ item.category__name|urlencode }}"
+                        >
                             {{ item.category__name|category_icon }} {{ item.category__name }}
-                        </span>
+                        </a>
                         <span class="category-amount">£{{ item.total|floatformat:2 }}</span>
                     </li>
                     {% endfor %}
@@ -203,12 +206,16 @@
         </section>
     </div>
 
+    {{ category_chart_labels|json_script:"category-chart-labels" }}
+    {{ category_chart_values|json_script:"category-chart-values" }}
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        const categoryChartLabels = {{ category_chart_labels|safe }};
-        const categoryChartValues = {{ category_chart_values|safe }};
+        const categoryChartLabels = JSON.parse(document.getElementById("category-chart-labels").textContent);
+        const categoryChartValues = JSON.parse(document.getElementById("category-chart-values").textContent);
         const categoryChartCanvas = document.getElementById("categorySpendingChart");
         const categoryPieChartCanvas = document.getElementById("categorySpendingPieChart");
+        const categoryDrilldownBaseUrl = "{% url 'category_transactions_drilldown' %}";
+        const selectedMonth = "{{ selected_month }}";
 
         const iconMap = [
             { match: ["bill", "rent", "mortgage", "council tax", "insurance"], icon: "💵" },
@@ -220,7 +227,8 @@
             { match: ["health", "wellness", "medical", "pharmacy", "fitness"], icon: "🧘" },
             { match: ["entertainment", "fun", "subscription", "streaming"], icon: "🎬" },
             { match: ["salary", "income", "pay"], icon: "💼" },
-            { match: ["education", "learning", "course", "study"], icon: "📚" }
+            { match: ["education", "learning", "course", "study"], icon: "📚" },
+            { match: ["investments", "investments", "brokerage", "isa", "stocks"], icon: "📈" },
         ];
 
         function getCategoryIcon(label) {
@@ -233,6 +241,15 @@
             }
 
             return "•";
+        }
+
+        function getCategoryDrilldownUrl(categoryName) {
+            const params = new URLSearchParams({
+                month: selectedMonth,
+                category: categoryName
+            });
+
+            return `${categoryDrilldownBaseUrl}?${params.toString()}`;
         }
 
         const chartLabelsWithIcons = categoryChartLabels.map((label) => `${getCategoryIcon(label)} ${label}`);
@@ -275,6 +292,17 @@
                     indexAxis: "y",
                     responsive: true,
                     maintainAspectRatio: false,
+                    onClick: function(_, activeElements) {
+                        if (!activeElements.length) {
+                            return;
+                        }
+
+                        const categoryName = categoryChartLabels[activeElements[0].index];
+                        window.location.href = getCategoryDrilldownUrl(categoryName);
+                    },
+                    onHover: function(event, activeElements) {
+                        event.native.target.style.cursor = activeElements.length ? "pointer" : "default";
+                    },
                     layout: {
                         padding: {
                             top: 8,

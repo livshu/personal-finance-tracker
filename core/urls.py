@@ -4,6 +4,7 @@ from .views import (
     confirm_amex_import,
     confirm_lloyds_import,
     confirm_santander_import,
+    category_transactions_drilldown,
     home,
     import_amex_csv,
     import_lloyds_csv,
@@ -14,6 +15,11 @@ from .views import (
 urlpatterns = [
     path("", home, name="home"),
     path("transactions/", transactions_drilldown, name="transactions_drilldown"),
+    path(
+        "transactions/category/",
+        category_transactions_drilldown,
+        name="category_transactions_drilldown",
+    ),
     path("import/lloyds/", import_lloyds_csv, name="import_lloyds_csv"),
     path(
         "import/lloyds/confirm/",

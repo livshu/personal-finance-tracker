@@ -6,6 +6,10 @@ CATEGORY_RULES = {
     "Tesco": "Groceries",
     "Sainsbury's": "Groceries",
     "M&S": "Groceries",
+    "Clapham Convenience": "Groceries",
+    "Handy Stores": "Groceries",
+    "Seven Eleven Foods": "Groceries",
+    "Common": "Groceries",
 
     # Shopping
     "Amazon": "Shopping",
@@ -23,11 +27,16 @@ CATEGORY_RULES = {
     "Boots": "Shopping",
     "Deciem": "Shopping",
     "Kiehl's": "Shopping",
+    "John Lewis": "Shopping",
+    "LoveArt": "Shopping",
+    "DUSK": "Shopping",
+    "Dunelm": "Shopping",
+    "Treatwell": "Shopping",
 
     # Transport / travel
     "Uber": "Transport",
-    "Trainline": "Travel",
     "TfL": "Transport",
+    "Trainline": "Travel",
 
     # Eating out
     "Pret": "Eating Out",
@@ -41,17 +50,19 @@ CATEGORY_RULES = {
     "Rudy's": "Eating Out",
     "Blank Street": "Eating Out",
     "Kiss the Hippo": "Eating Out",
+    "Deliveroo": "Eating Out",
+    "Marugame Udon": "Eating Out",
+    "Dubh Linn Gate": "Eating Out",
 
-    # Bills / utilities
+    # Utilities / bills
     "EDF Energy": "Utilities",
-
-    # Entertainment / subscriptions
-    "OpenAI": "Entertainment",
-    "LinkedIn": "Entertainment",
-
-    # Health / fitness
-    "Treatwell": "Shopping",
+    "Three": "Utilities",
+    "Lambeth Council": "Bills",
+    "Urban Jungle": "Bills",
     "Patient Zone": "Bills",
+
+    # Rent
+    "Marsh & Parsons": "Rent",
 
     # Education
     "Coursera": "Education",
@@ -62,9 +73,17 @@ CATEGORY_RULES = {
     "OpenAI": "Education",
     "LinkedIn": "Education",
 
-    # Health and wellness:
+    # Health and wellness
     "Yogahaven": "Health and Wellness",
     "Yoga Union": "Health and Wellness",
+
+    "Trading 212": "Investments",
+    "Moneybox": "Investments",
+    "American Express": "Transfer",
+    "Club Lloyds Fee": "Bills",
+    "Interest": "Salary",   # or add a better category later, see below
+    "Stripe": "Bills",
+    "Incentive": "Salary",
 }
 
 

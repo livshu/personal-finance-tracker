@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ metric_label }} | Personal Finance Tracker</title>
+    <title>{{ page_title }} | Personal Finance Tracker</title>
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
 </head>
 <body>
@@ -13,13 +13,14 @@
             <section class="import-hero">
                 <div>
                     <p class="eyebrow">Transaction drilldown</p>
-                    <h1 class="page-title">{{ metric_label }}</h1>
-                    <p class="page-subtitle">
-                        Showing the underlying transactions for {{ selected_month_display }}.
-                    </p>
+                    <h1 class="page-title">{{ page_title }}</h1>
+                    <p class="page-subtitle">{{ page_subtitle }}</p>
                 </div>
                 <div class="import-hero-panel">
                     <p><strong>Selected month:</strong> {{ selected_month_display }}</p>
+                    {% if selected_category %}
+                        <p><strong>Category:</strong> {{ selected_category }}</p>
+                    {% endif %}
                     <p><strong>Matching transactions:</strong> {{ transaction_count }}</p>
                 </div>
             </section>
@@ -28,7 +29,7 @@
                 <div class="section-heading">
                     <div>
                         <p class="section-kicker">Transactions</p>
-                        <h2>{{ metric_label }}</h2>
+                        <h2>{{ page_title }}</h2>
                     </div>
                     <div class="page-actions">
                         <a class="button-link secondary" href="{% url 'home' %}?month={{ selected_month }}">Back to dashboard</a>
@@ -73,7 +74,7 @@
                         </table>
                     </div>
                 {% else %}
-                    <p class="empty-state">No transactions matched this metric for {{ selected_month_display }}.</p>
+                    <p class="empty-state">{{ empty_state_message }}</p>
                 {% endif %}
             </section>
         </div>

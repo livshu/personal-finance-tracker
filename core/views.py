@@ -15,6 +15,7 @@ from core.importers.santander import (
 )
 from core.import_services import build_transactions_for_import
 from core.dashboard import (
+    get_category_transaction_drilldown_queryset,
     get_monthly_category_breakdown,
     get_monthly_summary,
     get_selected_month_window,
@@ -105,6 +106,58 @@ def transactions_drilldown(request):
     context = {
         "metric": metric,
         "metric_label": metric_label,
+        "page_title": metric_label,
+        "page_subtitle": (
+            f"Showing the underlying transactions for {month_start.strftime('%B %Y')}."
+        ),
+        "empty_state_message": (
+            f"No transactions matched this metric for {month_start.strftime('%B %Y')}."
+        ),
+        "selected_month": month_start.strftime("%Y-%m"),
+        "selected_month_display": month_start.strftime("%B %Y"),
+        "transaction_count": len(transactions),
+        "transactions": transactions,
+    }
+    return render(request, "core/transactions_drilldown.html", context)
+
+
+def category_transactions_drilldown(request):
+    selected_month, month_start, month_end = get_selected_month_window(
+        request.GET.get("month")
+    )
+    category_name = request.GET.get("category")
+    category, transactions = get_category_transaction_drilldown_queryset(
+        category_name, month_start, month_end
+    )
+
+    if category is None:
+        context = {
+            "page_title": "Category transactions",
+            "page_subtitle": "Select a valid category from the dashboard to view its transactions.",
+            "empty_state_message": "No valid category was selected for this drilldown.",
+            "selected_month": month_start.strftime("%Y-%m"),
+            "selected_month_display": month_start.strftime("%B %Y"),
+            "transaction_count": 0,
+            "transactions": [],
+        }
+        return render(
+            request,
+            "core/transactions_drilldown.html",
+            context,
+            status=404,
+        )
+
+    transactions = attach_reporting_display_amounts(transactions)
+
+    context = {
+        "page_title": f"{category.name} transactions",
+        "page_subtitle": (
+            f"Showing spend transactions for {category.name} in {month_start.strftime('%B %Y')}."
+        ),
+        "empty_state_message": (
+            f"No transactions found for {category.name} in {month_start.strftime('%B %Y')}."
+        ),
+        "selected_category": category.name,
         "selected_month": month_start.strftime("%Y-%m"),
         "selected_month_display": month_start.strftime("%B %Y"),
         "transaction_count": len(transactions),

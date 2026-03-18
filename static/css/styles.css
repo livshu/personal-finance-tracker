@@ -310,6 +310,16 @@ body {
     color: var(--text);
 }
 
+.category-link {
+    text-decoration: none;
+}
+
+.category-link:hover,
+.category-link:focus-visible {
+    color: var(--teal-dark);
+    text-decoration: underline;
+}
+
 .category-amount,
 .transaction-amount {
     flex-shrink: 0;

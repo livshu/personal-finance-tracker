@@ -2,6 +2,7 @@ from decimal import Decimal
 from datetime import date
 from django.test import TestCase
 from django.urls import reverse
+from core.dashboard import get_category_transaction_drilldown_queryset
 from core.models import Account, Category, Transaction
 from core.reporting import get_reporting_amount
 
@@ -243,6 +244,23 @@ class HomeReportingTests(TestCase):
         self.assertContains(response, "£500.00")
         self.assertContains(response, "Raw: £1000.00")
 
+    def test_home_category_list_links_to_category_drilldown(self):
+        response = self.client.get("/")
+
+        self.assertContains(
+            response,
+            f'{reverse("category_transactions_drilldown")}?month={date.today().strftime("%Y-%m")}&category=Groceries',
+        )
+
+    def test_home_chart_wires_category_drilldown_route(self):
+        response = self.client.get("/")
+
+        self.assertContains(
+            response,
+            reverse("category_transactions_drilldown"),
+        )
+        self.assertContains(response, "getCategoryDrilldownUrl")
+
 
 class TransactionsDrilldownTests(TestCase):
     def setUp(self):
@@ -375,3 +393,164 @@ class TransactionsDrilldownTests(TestCase):
         self.assertTrue(transaction.has_reporting_adjustment)
         self.assertContains(response, "£500.00")
         self.assertContains(response, "Raw: £1000.00")
+
+
+class CategoryTransactionsDrilldownTests(TestCase):
+    def setUp(self):
+        self.personal_account = Account.objects.create(
+            name="Lloyds Personal",
+            account_type=Account.AccountType.CURRENT,
+            owner_type=Account.OwnerType.PERSONAL,
+            institution="Lloyds",
+            currency="GBP",
+        )
+        self.joint_account = Account.objects.create(
+            name="Santander Joint",
+            account_type=Account.AccountType.CURRENT,
+            owner_type=Account.OwnerType.JOINT,
+            institution="Santander",
+            currency="GBP",
+        )
+        self.groceries = Category.objects.create(name="Groceries", is_income=False)
+        self.dining = Category.objects.create(name="Dining", is_income=False)
+        self.selected_month = date.today().replace(day=1)
+        self.in_month_date = self.selected_month.replace(day=10)
+        self.outside_month = (
+            date(self.selected_month.year - 1, 12, 15)
+            if self.selected_month.month == 1
+            else date(self.selected_month.year, self.selected_month.month - 1, 15)
+        )
+
+        self.groceries_personal = Transaction.objects.create(
+            account=self.personal_account,
+            category=self.groceries,
+            date=self.in_month_date,
+            amount=Decimal("20.00"),
+            description_raw="TESCO PERSONAL",
+            merchant_normalized="",
+            transaction_type=Transaction.TransactionType.DEBIT,
+            is_transfer=False,
+            is_excluded=False,
+        )
+        self.groceries_joint = Transaction.objects.create(
+            account=self.joint_account,
+            category=self.groceries,
+            date=self.in_month_date.replace(day=11),
+            amount=Decimal("80.00"),
+            description_raw="TESCO JOINT",
+            merchant_normalized="",
+            transaction_type=Transaction.TransactionType.DEBIT,
+            is_transfer=False,
+            is_excluded=False,
+        )
+        Transaction.objects.create(
+            account=self.personal_account,
+            category=self.groceries,
+            date=self.in_month_date.replace(day=12),
+            amount=Decimal("12.00"),
+            description_raw="GROCERIES TRANSFER",
+            merchant_normalized="",
+            transaction_type=Transaction.TransactionType.DEBIT,
+            is_transfer=True,
+            is_excluded=False,
+        )
+        Transaction.objects.create(
+            account=self.personal_account,
+            category=self.groceries,
+            date=self.in_month_date.replace(day=13),
+            amount=Decimal("15.00"),
+            description_raw="GROCERIES EXCLUDED",
+            merchant_normalized="",
+            transaction_type=Transaction.TransactionType.DEBIT,
+            is_transfer=False,
+            is_excluded=True,
+        )
+        Transaction.objects.create(
+            account=self.personal_account,
+            category=self.groceries,
+            date=self.outside_month,
+            amount=Decimal("18.00"),
+            description_raw="OLD MONTH GROCERIES",
+            merchant_normalized="",
+            transaction_type=Transaction.TransactionType.DEBIT,
+            is_transfer=False,
+            is_excluded=False,
+        )
+        Transaction.objects.create(
+            account=self.personal_account,
+            category=self.dining,
+            date=self.in_month_date.replace(day=14),
+            amount=Decimal("35.00"),
+            description_raw="DINNER OUT",
+            merchant_normalized="",
+            transaction_type=Transaction.TransactionType.DEBIT,
+            is_transfer=False,
+            is_excluded=False,
+        )
+        Transaction.objects.create(
+            account=self.personal_account,
+            category=self.groceries,
+            date=self.in_month_date.replace(day=15),
+            amount=Decimal("500.00"),
+            description_raw="GROCERIES CREDIT",
+            merchant_normalized="",
+            transaction_type=Transaction.TransactionType.CREDIT,
+            is_transfer=False,
+            is_excluded=False,
+        )
+
+    def test_category_drilldown_queryset_matches_monthly_spending_logic(self):
+        category, transactions = get_category_transaction_drilldown_queryset(
+            "Groceries",
+            self.selected_month,
+            self.selected_month.replace(day=28),
+        )
+
+        self.assertEqual(category, self.groceries)
+        self.assertEqual(
+            list(transactions),
+            [self.groceries_joint, self.groceries_personal],
+        )
+
+    def test_category_drilldown_view_returns_matching_transactions(self):
+        response = self.client.get(
+            reverse("category_transactions_drilldown"),
+            {"month": self.selected_month.strftime("%Y-%m"), "category": "Groceries"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["page_title"], "Groceries transactions")
+        self.assertEqual(response.context["selected_category"], "Groceries")
+        self.assertEqual(response.context["transaction_count"], 2)
+        self.assertEqual(
+            [transaction.description_raw for transaction in response.context["transactions"]],
+            ["TESCO JOINT", "TESCO PERSONAL"],
+        )
+        self.assertContains(response, "Raw: £80.00")
+        self.assertContains(response, "£40.00")
+
+    def test_category_drilldown_missing_category_returns_404_page(self):
+        response = self.client.get(
+            reverse("category_transactions_drilldown"),
+            {"month": self.selected_month.strftime("%Y-%m")},
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertContains(
+            response,
+            "No valid category was selected for this drilldown.",
+            status_code=404,
+        )
+
+    def test_category_drilldown_invalid_category_returns_404_page(self):
+        response = self.client.get(
+            reverse("category_transactions_drilldown"),
+            {"month": self.selected_month.strftime("%Y-%m"), "category": "Missing"},
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertContains(
+            response,
+            "No valid category was selected for this drilldown.",
+            status_code=404,
+        )

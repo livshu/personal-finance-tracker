@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from django.utils import timezone
 
-from core.models import Transaction
+from core.models import Category, Transaction
 from core.reporting import get_reporting_amount
 
 
@@ -129,15 +129,8 @@ def get_monthly_category_breakdown(month_start, month_end):
     Return reporting-aware category totals and chart-ready values
     for debit transactions in the selected month window.
     """
-    monthly_category_transactions = Transaction.objects.select_related(
-        "account", "category"
-    ).filter(
-        transaction_type=Transaction.TransactionType.DEBIT,
-        is_excluded=False,
-        is_transfer=False,
-        date__gte=month_start,
-        date__lte=month_end,
-        category__isnull=False,
+    monthly_category_transactions = get_monthly_spending_transactions_queryset(
+        month_start, month_end
     )
 
     category_totals = {}
@@ -173,6 +166,40 @@ def get_monthly_category_breakdown(month_start, month_end):
         "category_chart_labels": category_chart_labels,
         "category_chart_values": category_chart_values,
     }
+
+
+def get_monthly_spending_transactions_queryset(month_start, month_end):
+    """
+    Return the spend transactions that power the monthly category breakdown.
+    """
+    return Transaction.objects.select_related("account", "category").filter(
+        transaction_type=Transaction.TransactionType.DEBIT,
+        is_excluded=False,
+        is_transfer=False,
+        date__gte=month_start,
+        date__lte=month_end,
+        category__isnull=False,
+    )
+
+
+def get_category_transaction_drilldown_queryset(category_name, month_start, month_end):
+    """
+    Return the selected category and the reporting-consistent spend queryset.
+    """
+    normalized_category_name = (category_name or "").strip()
+
+    if not normalized_category_name:
+        return None, None
+
+    category = Category.objects.filter(name=normalized_category_name).first()
+    if category is None:
+        return None, None
+
+    transactions = get_monthly_spending_transactions_queryset(
+        month_start, month_end
+    ).filter(category=category).order_by("-date", "-id")
+
+    return category, transactions
 
 
 
