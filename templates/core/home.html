@@ -254,18 +254,31 @@
 
         const chartLabelsWithIcons = categoryChartLabels.map((label) => `${getCategoryIcon(label)} ${label}`);
         const chartPalette = [
-            "#0f766e",
-            "#14b8a6",
-            "#f59e0b",
-            "#ef4444",
-            "#3b82f6",
-            "#8b5cf6",
-            "#ec4899",
-            "#84cc16",
-            "#f97316",
-            "#06b6d4"
+            "#7c8cff",
+            "#5b6cff",
+            "#8f6dff",
+            "#4da3ff",
+            "#758bff",
+            "#6d7dff",
+            "#9b7cff",
+            "#5877ff",
+            "#6fa8ff",
+            "#8da0ff"
         ];
         const pieChartColors = categoryChartLabels.map((_, index) => chartPalette[index % chartPalette.length]);
+        const chartGridColor = "rgba(141, 151, 178, 0.18)";
+        const chartAxisColor = "#aeb8d3";
+        const chartTextColor = "#f7f9ff";
+        const tooltipStyles = {
+            backgroundColor: "rgba(8, 11, 20, 0.94)",
+            borderColor: "rgba(124, 140, 255, 0.28)",
+            borderWidth: 1,
+            titleColor: chartTextColor,
+            bodyColor: "#d7def4",
+            displayColors: false,
+            padding: 12,
+            cornerRadius: 12
+        };
         let barChart;
 
         if (categoryChartCanvas && categoryChartLabels.length > 0) {
@@ -315,10 +328,10 @@
                         x: {
                             beginAtZero: true,
                             grid: {
-                                color: "rgba(148, 163, 184, 0.28)"
+                                color: chartGridColor
                             },
                             ticks: {
-                                color: "#475569",
+                                color: chartAxisColor,
                                 font: {
                                     size: 13,
                                     weight: "600"
@@ -330,7 +343,7 @@
                             title: {
                                 display: true,
                                 text: "Total Spend",
-                                color: "#475569",
+                                color: chartAxisColor,
                                 font: {
                                     size: 14,
                                     weight: "700"
@@ -343,7 +356,7 @@
                                 display: false
                             },
                             ticks: {
-                                color: "#0f172a",
+                                color: chartTextColor,
                                 padding: 12,
                                 crossAlign: "far",
                                 font: {
@@ -361,6 +374,7 @@
                             display: false
                         },
                         tooltip: {
+                            ...tooltipStyles,
                             callbacks: {
                                 title: function(context) {
                                     return categoryChartLabels[context[0].dataIndex];
@@ -413,7 +427,7 @@
                                 usePointStyle: true,
                                 boxWidth: 10,
                                 padding: 18,
-                                color: "#334155",
+                                color: chartAxisColor,
                                 font: {
                                     size: 12,
                                     weight: "700"
@@ -421,6 +435,7 @@
                             }
                         },
                         tooltip: {
+                            ...tooltipStyles,
                             callbacks: {
                                 title: function(context) {
                                     return categoryChartLabels[context[0].dataIndex];
